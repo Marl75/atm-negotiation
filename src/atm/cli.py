@@ -112,7 +112,7 @@ def check_proposal(row: int | None, log: str | None, overrides: dict) -> None:
 
 
 def evaluate(n: int, seed: int, workers: int, population: str = "stratified", samples: int = 1,
-             max_cost: float | None = None) -> None:
+             max_cost: float | None = None, first_sample: int = 1) -> None:
     from .data import load_flights
     from .evaluate import populations, run_eval
 
@@ -123,6 +123,8 @@ def evaluate(n: int, seed: int, workers: int, population: str = "stratified", sa
         print(f"-> {out}")
         return
     for i, rows in enumerate(populations(flights, population, n, samples, seed)):
+        if i + 1 < first_sample:  # already run: same seed gives the same disjoint split
+            continue
         _, summary, out = run_eval(flights, n, seed, workers, rows=rows, tag=f"{population}_s{seed}-{i + 1}of{samples}",
                                    max_cost_usd=max_cost)
         print(f"[{population} sample {i + 1}/{samples}] cost {summary['cost_usd']} $ -> {out}")
@@ -172,6 +174,7 @@ def main() -> None:
     e.add_argument("--population", choices=["stratified", "prev_leg", "stress"], default="stratified",
                    help="prev_leg: no LATE_AIRCRAFT_DELAY leak; stress: status quo unsafe or holding (rules screen)")
     e.add_argument("--samples", type=int, default=1, help="disjoint samples of --n flights, run one after another")
+    e.add_argument("--first-sample", type=int, default=1, help="skip samples before this one (already run)")
     e.add_argument("--max-cost", type=float, help="USD cap per sample; flights beyond it are not run")
     rep = sub.add_parser("eval-report", help="aggregate several eval runs (markdown), no LLM")
     rep.add_argument("dirs", nargs="+", help="eval/<run>/ folders, e.g. eval/*_prev_leg_s0-*")
@@ -199,4 +202,4 @@ def main() -> None:
     elif args.cmd == "audit":
         audit(args.n, args.seed, args.workers, args.gates, args.planned_gate)
     else:
-        evaluate(args.n, args.seed, args.workers, args.population, args.samples, args.max_cost)
+        evaluate(args.n, args.seed, args.workers, args.population, args.samples, args.max_cost, args.first_sample)

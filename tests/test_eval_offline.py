@@ -137,3 +137,11 @@ def test_outcome_rebuilt_from_log_gives_same_metrics(tmp_path):
     rebuilt = run_case(FLIGHTS, r, outcome=outcome_from_log(log))
     live.pop("latency_s"); rebuilt.pop("latency_s")
     assert rebuilt == live
+
+
+def test_first_sample_is_stable_across_sample_counts():
+    from atm.evaluate import populations
+
+    one = populations(FLIGHTS, "prev_leg", n=10, samples=1)[0]
+    three = populations(FLIGHTS, "prev_leg", n=10, samples=3)
+    assert list(one.index) == list(three[0].index) and not set(one.index) & set(three[1].index)
