@@ -67,6 +67,14 @@ class Proposal(BaseModel):
     rationale: str
 
 
+# Proposal fields each role owns. Disjoint, so counter-proposals from different roles can be merged.
+LEVERS: dict[Role, tuple[str, ...]] = {
+    Role.ATC: ("runway", "slot_gap_min", "revised_arrival_delay_min"),
+    Role.PILOT: ("holding_min", "reroute"),
+    Role.GROUND: ("gate",),
+}
+
+
 class Evaluation(BaseModel):
     """An agent's verdict on a proposal, from its own domain only."""
 

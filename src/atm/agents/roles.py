@@ -1,5 +1,5 @@
 from ..constraints import FINAL_APPROACH_SPEED_KT, FINAL_RESERVE_MIN, check_atc, check_ground, check_pilot
-from ..protocol import Role
+from ..protocol import LEVERS, Role
 from .base import Agent
 
 
@@ -14,7 +14,7 @@ class ATCAgent(Agent):
         f"{FINAL_APPROACH_SPEED_KT} kt (wake_separation).\n"
         "- HARD: no landing before the earliest available slot (landing_slot_available).\n"
         "- SOFT: maximise sector throughput, so keep the slot gap no larger than separation requires.\n"
-        "- Your levers: runway, slot_gap_min, revised_arrival_delay_min, holding_min."
+        f"- Your levers: {', '.join(LEVERS[Role.ATC])}. Holding is the pilot's lever."
     )
 
 
@@ -28,7 +28,7 @@ class PilotAgent(Agent):
         "- SOFT: airborne holding costs ~4-5x a ground minute, so prefer delay on the ground or a later slot "
         "over holding.\n"
         "- SOFT: protect passengers' connections, minimise turbulence exposure.\n"
-        "- Your levers: holding_min, reroute."
+        f"- Your levers: {', '.join(LEVERS[Role.PILOT])}."
     )
 
 
@@ -40,5 +40,6 @@ class GroundAgent(Agent):
         "- HARD: assign a gate that exists and is not blocked (gate_available).\n"
         "- SOFT: arrival before the ground-crew shift end, no overtime (crew_shift).\n"
         "- SOFT: leave the minimum turnaround before the next leg of the same aircraft (turnaround_next_leg).\n"
-        "- Your levers: gate. You may ask for an earlier arrival in `concerns`, but not change runway or holding."
+        f"- Your levers: {', '.join(LEVERS[Role.GROUND])}. You may ask for an earlier arrival in `concerns`, "
+        "but not change runway or holding."
     )

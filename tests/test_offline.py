@@ -98,3 +98,21 @@ def test_prompt_carries_domain_checks():
 
     prompt = ATCAgent().prompt(S, C, _p(slot_gap_min=1.5))
     assert '"id": "wake_separation"' in prompt and '"passed": false' in prompt
+
+
+def test_select_counter_merges_disjoint_fixes():
+    # Real row-0 run: ATC fixed the wake gap, ground fixed the gate, each alone left the other failure
+    current = _p(slot_gap_min=1.5, gate="G1")
+    c = build_context(S.model_copy(update={"cause": "LATE_AIRCRAFT"}), next_departure="11:30")
+    evs = [_ev(Role.ATC, slot_gap_min=2.5, gate="G1"), _ev(Role.GROUND, slot_gap_min=1.5, gate="G2")]
+    p, who, reason = select_counter(S, c, evs, current=current)
+    assert who == "MERGED" and p.slot_gap_min == 2.5 and p.gate == "G2" and hard_ok(check_all(S, c, p))
+
+
+def test_merge_ignores_changes_outside_own_levers():
+    from atm.negotiation import merge_counters
+
+    current = _p(gate="G1", holding_min=10)
+    evs = [_ev(Role.GROUND, gate="G2", holding_min=0), _ev(Role.PILOT, gate="G3", holding_min=5)]
+    merged = merge_counters(current, evs)
+    assert merged.gate == "G2" and merged.holding_min == 5

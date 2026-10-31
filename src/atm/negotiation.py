@@ -8,7 +8,7 @@ from .agents import ATCAgent, GroundAgent, PilotAgent
 from .config import LOG_DIR, MAX_ROUNDS
 from .constraints import check_all, hard_ok
 from .fallback import deterministic_resolution
-from .protocol import Disruption, Evaluation, OpsContext, Outcome, Proposal, Role, Turn
+from .protocol import LEVERS, Disruption, Evaluation, OpsContext, Outcome, Proposal, Role, Turn
 
 
 def naive_initial(context: OpsContext) -> Proposal:
@@ -33,7 +33,7 @@ def negotiate(scenario: Disruption, context: OpsContext, initial: Proposal, agen
             return _finish(Outcome(scenario=scenario, context=context, turns=turns, consensus=True,
                                    final=proposal, resolved_by="consensus"))
 
-        picked = select_counter(scenario, context, evaluations)
+        picked = select_counter(scenario, context, evaluations, current=proposal)
         if picked is None:
             break
         proposal, proposer, turns[-1].next_selection = picked
@@ -53,16 +53,37 @@ def score(scenario: Disruption, context: OpsContext, p: Proposal) -> tuple[int, 
             p.holding_min, p.revised_arrival_delay_min)
 
 
-def select_counter(scenario: Disruption, context: OpsContext,
-                   evaluations: list[Evaluation]) -> tuple[Proposal, Role, str] | None:
-    """Deterministic pick among all agents' counter-proposals (not the LLM's call), with a logged reason."""
-    ranked = sorted(((score(scenario, context, e.counter_proposal), i, e)
-                     for i, e in enumerate(evaluations) if e.counter_proposal), key=lambda x: (x[0], x[1]))
+def merge_counters(current: Proposal, evaluations: list[Evaluation]) -> Proposal | None:
+    """Combine counter-proposals: each role's changes are taken only on its own levers (LEVERS are disjoint)."""
+    changes, notes = {}, []
+    for e in evaluations:
+        if not e.counter_proposal:
+            continue
+        own = {f: getattr(e.counter_proposal, f) for f in LEVERS[e.role]
+               if getattr(e.counter_proposal, f) != getattr(current, f)}
+        if own:
+            changes |= own
+            notes.append(f"{e.role.value}: " + ", ".join(f"{f}={v}" for f, v in own.items()))
+    if len(notes) < 2:  # nothing to combine: same as a single counter
+        return None
+    return current.model_copy(update=changes | {"rationale": "merged counters - " + "; ".join(notes)})
+
+
+def select_counter(scenario: Disruption, context: OpsContext, evaluations: list[Evaluation],
+                   current: Proposal | None = None) -> tuple[Proposal, Role | str, str] | None:
+    """Deterministic pick among all agents' counter-proposals and their merge (not the LLM's call), with a logged reason."""
+    candidates = [(e.role, e.counter_proposal) for e in evaluations if e.counter_proposal]
+    merged = merge_counters(current, evaluations) if current else None
+    if merged:
+        candidates.append(("MERGED", merged))
+    ranked = sorted(((score(scenario, context, p), i, who, p) for i, (who, p) in enumerate(candidates)),
+                    key=lambda x: (x[0], x[1]))
     if not ranked:
         return None
-    best_score, _, best = ranked[0]
-    reason = " | ".join(f"{e.role.value} (hard_fail, soft_fail, holding, delay)={s}" for s, _, e in ranked)
-    return best.counter_proposal, best.role, f"picked {best.role.value} {best_score}; candidates: {reason}"
+    best_score, _, who, best = ranked[0]
+    name = lambda r: getattr(r, "value", r)
+    reason = " | ".join(f"{name(w)} (hard_fail, soft_fail, holding, delay)={s}" for s, _, w, _ in ranked)
+    return best, who, f"picked {name(who)} {best_score}; candidates: {reason}"
 
 
 def _finish(outcome: Outcome) -> Outcome:
