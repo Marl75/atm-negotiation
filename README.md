@@ -113,7 +113,9 @@ v2 = file d'arrivée reconstituée, statu quo réaliste, règles FAA, Part 117, 
 | Solutions finales sûres (contrôles hard) | **20/20** | 20/20 | **16/20** (mesuré) | — |
 | Échecs du statu quo | — | — | porte occupée ×4, réserve carburant ×1 | — |
 | Attente en vol moyenne | 0,4 min | **0 min** | 5,6 min | inconnue |
-| Carburant économisé vs statu quo | ≈ 210 kg/vol (40 kg/min d'attente, hypothèse) | | | |
+| Carburant économisé vs statu quo | ≈ 210 kg/vol, **dont un seul vol** (DL826, 98 min) ; **15 kg/vol sans lui** (40 kg/min d'attente, hypothèse) | | | |
+| Auteur de la solution retenue | ATC 75 % (statu quo accepté), Sol 15 %, Pilote 5 %, `GROUND_HOLD` 5 %, `SOLVER` 0 % | | | |
+| Acceptations d'un plan dangereux | 7, **toutes hors du domaine de l'agent** (0 dans son domaine) | | | |
 | Retard moyen à l'arrivée | 56,8 min | 56,8 min | 56,8 min | 86,2 min |
 | Erreur du créneau prédit vs retard réel | 41 min en moyenne, **sous-estimé de 34 min** | | | |
 | Retard du vol suivant : erreur moyenne (6 cas) | 55 min, sous-estimé de 50 min | | | |
@@ -124,17 +126,37 @@ v2 = file d'arrivée reconstituée, statu quo réaliste, règles FAA, Part 117, 
   tour 1. Les 4 échecs sont **mesurés** : porte prévue encore occupée par un avion de la même compagnie (4 cas), et
   DL826 (ATL, météo) qui aurait dû tourner 98 min en attente avec 20 min de carburant disponible.
 - Sur ces données, le problème est **au sol** (portes), pas dans le ciel : 5 cas sur 20 seulement ont de l'attente en vol.
+- **Qui a trouvé la solution :** sur les 5 vols où le statu quo est corrigé, 4 l'ont été par un agent (Sol ×3 en
+  trouvant une porte libre, Pilote ×1 en supprimant 7 min d'attente) et 1 par l'orchestrateur (DL826 : 98 min
+  d'attente en vol transformées en retenue au sol, `GROUND_HOLD<GROUND`). Le solveur n'a jamais gagné. La
+  négociation n'a donc réellement servi que sur 5 vols sur 20 ; les 15 autres sont un statu quo déjà sûr accepté.
 - Le solveur reste au moins aussi bon que les LLM : AA204 garde 8 min d'attente en vol acceptées au tour 1, alors
-  que le solveur les aurait reportées au sol. Les LLM servent à **expliquer** et à **négocier** ; ce sont les règles et
-  le solveur qui garantissent la légalité.
+  que le solveur les aurait reportées au sol. Cause : `GROUND_HOLD` et `SOLVER` ne sont évalués que si un agent
+  refuse ; un consensus immédiat ne passe pas par le classement. Les LLM servent à **expliquer** et à **négocier** ;
+  ce sont les règles et le solveur qui garantissent la légalité.
+- **Les 7 acceptations de plans dangereux sont voulues :** chaque agent ne voit que son domaine, donc l'ATC et le
+  pilote acceptent une porte occupée qu'ils ne voient pas. Vérifié dans les logs : **aucun agent n'a accepté un plan
+  qui viole une règle de son propre domaine**. Le contrôle déterministe rattrape les autres.
 - Le créneau prédit **sous-estime** le retard réel de 34 min : on n'utilise plus les minutes de cause DOT, et les
   retards compagnie / système / météo au départ ne sont pas prévisibles avec ce qu'on sait avant le départ. Les
   retards météo réels ne s'expliquent presque pas par la file à destination (créneau médian +3 min, réel médian
   +79 min) : la météo du DOT agit surtout **avant le décollage**.
-- **Fuite restante :** quand le vol précédent du même avion n'est pas dans le fichier (80 % de cet échantillon),
-  `LATE_AIRCRAFT_DELAY` sert d'approximation de l'heure d'arrivée de l'avion entrant. C'est une attribution faite
-  après coup : dans 31 % de ces lignes, elle égale exactement le retard réel à l'arrivée (ex. DL678 : 127 prédit,
-  127 réel). Les créneaux « parfaits » viennent de là, pas du modèle.
+- **Fuite restante, isolée dans l'éval :** quand le vol précédent du même avion n'est pas dans le fichier (80 % de
+  cet échantillon, 60 % du fichier), `LATE_AIRCRAFT_DELAY` sert d'approximation de l'heure d'arrivée de l'avion
+  entrant. C'est une attribution faite après coup, et les 5 colonnes de cause s'additionnent **exactement** à
+  `ARRIVAL_DELAY` sur 100 % du fichier : l'entrée contient une partie de la réponse. Le résumé d'éval sépare donc
+  chaque comparaison avec la réalité par source, et seule la ligne « vol précédent » est annonçable :
+
+  | Source du retard connu | Vols | Créneau = retard réel exactement | Erreur moyenne du créneau |
+  |---|---|---|---|
+  | Vol précédent (légitime) | 4 | **0 %** | 23,5 min |
+  | `LATE_AIRCRAFT_DELAY` (fuite) | 16 | **31 %** (5 vols, ex. DL678 : 127 prédit, 127 réel) | 45,4 min |
+
+  Les créneaux « parfaits » viennent tous de la fuite, pas du modèle. Avec 4 vols, la précision légitime n'est pas
+  mesurable : il faut un échantillon plus grand, restreint aux vols dont le vol précédent est connu. Les 6 cas de
+  vol suivant sont tous des lignes à fuite.
+- **Météo :** 5 vols météo sur 10 ont un créneau prédit de 0 min pour 49 min de retard réel en moyenne. Rien de ce
+  qu'on sait avant le départ ne prévoit la météo ; il faudrait des METAR / programmes de retard au sol (challenge 5).
 - **Cas d'échec corrigé en cours de route :** la première version de la Part 117 supposait que l'équipage suit l'avion
   toute la journée. MQ3174 (5 étapes depuis 07:40) était alors escaladé à tort. Désormais, si l'horaire prévu
   dépasse déjà la limite, on suppose un changement d'équipage.
@@ -149,7 +171,7 @@ cp .env.example .env      # puis mettre ANTHROPIC_API_KEY
 uv run atm check          # vérifie la clé API et les données
 uv run pytest             # tests hors ligne (agents factices, aucun coût)
 uv run atm run --row 0    # une négociation (appelle l'API)
-uv run atm eval --n 20    # banc d'éval (~0,12 $ par vol)
+uv run atm eval --n 20    # banc d'éval (~0,05 $ par vol)
 ```
 
 ## TODO
@@ -158,5 +180,7 @@ uv run atm eval --n 20    # banc d'éval (~0,12 $ par vol)
 - [x] Banc d'éval avec baselines ; statu quo réaliste (départ dès que prêt, attente en vol, porte prévue)
 - [x] File d'arrivée et portes reconstituées depuis les données ; type d'avion par registre FAA
 - [ ] Caler la charge de fond (70 %) sur les débits FAA ASPM par aéroport
+- [ ] Proposer la retenue au sol même en cas de consensus immédiat (AA204)
+- [ ] Éval de précision sur un échantillon restreint aux vols dont le vol précédent est connu
 - [ ] Correspondances passagers, taxiways
 - [ ] UI de démo (journal de consensus lisible)
