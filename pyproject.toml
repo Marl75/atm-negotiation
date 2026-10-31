@@ -1,0 +1,24 @@
+[project]
+name = "atm"
+version = "0.1.0"
+description = "Challenge #2 Airbus - multi-agent ATC / Pilot / Ground negotiation"
+requires-python = ">=3.12"
+dependencies = [
+    "anthropic>=2.3.0",
+    "pandas>=3.1.0",
+    "pydantic>=2.14.2",
+    "python-dotenv>=1.2.4",
+    "rich>=15.0.0",
+]
+
+[project.scripts]
+atm = "atm.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.13.6,<0.14.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.2.0",
+]
