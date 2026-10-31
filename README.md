@@ -59,8 +59,30 @@ protocol.py      Proposal, Evaluation, ConstraintResult, Turn, Outcome (pydantic
 constraints.py   contraintes dures déterministes par domaine (pas de LLM)
 negotiation.py   orchestrateur : MAX_ROUNDS=3, contrôles à chaque tour, log JSONL
 fallback.py      solveur déterministe si pas de consensus
-cli.py           `atm check`, `atm run --row N`
+cli.py           `atm check`, `atm run --row N` (+ décision du superviseur), `atm check-proposal`
 ```
+
+### Un humain décide (`atm run`)
+Les agents et le solveur **proposent** ; le superviseur d'approche **décide**. Après la négociation, `atm run --row N`
+affiche le plan final (retard, attente en vol, retenue au sol, piste, porte), chaque contrôle du plan final
+(dur/souple, OK/échec, base REGULATORY/DATA/ASSUMPTION, source) et les réserves de chaque agent au dernier tour, puis
+demande d'approuver ou de rejeter avec un motif libre. La décision (`approved` / `rejected`, motif, horodatage UTC,
+`decided_by: "approach supervisor"`) est écrite dans le champ `human_decision` de la dernière ligne du log JSONL
+(`null` = en attente). Si le solveur ne trouve aucun plan sûr (`final: null`), le cas n'est jamais silencieux : il est
+affiché « ESCALATED: no safe option » et enregistré `escalated`, avec la consigne du superviseur.
+`--auto-approve` enregistre une approbation sans question (`auto: true`, donc visible comme non humaine) ;
+`atm eval` et `atm audit` restent non interactifs et laissent `human_decision` à `null`.
+
+### Tester les règles soi-même (`atm check-proposal`)
+Les vraies règles Python (`check_all`), sans LLM, sur n'importe quelle proposition : utile pour essayer de casser le
+système. Le scénario vient d'une ligne DOT (`--row N`) ou d'un log (`--log logs/....jsonl`, sans relire le CSV). La
+proposition part du statu quo ; le JSON sur stdin puis les options (`--delay --holding --gap --runway --gate`)
+remplacent ses champs. Sortie JSON : `proposal`, `hard_ok`, `all_ok`, et chaque contrôle avec `passed`, `hard`,
+`detail`, `basis`, `source`.
+```bash
+echo '{"holding_min": 90, "revised_arrival_delay_min": 120}' | uv run atm check-proposal --log logs/<vol>.jsonl --gate G9
+```
+Le viewer (`viewer/`, hors ligne, sans serveur) ne l'appelle pas encore : il faudrait un petit serveur local.
 
 ## Contraintes et provenance des valeurs
 Chaque contrôle du log porte `hard` (sécurité, non négociable) ou soft (coût, négociable), une `basis` et une `source`.
@@ -232,7 +254,8 @@ lignes dont le retard entrant vient du vol précédent (pas de fuite) : 83 171 l
 cp .env.example .env      # puis mettre ANTHROPIC_API_KEY
 uv run atm check          # vérifie la clé API et les données
 uv run pytest             # tests hors ligne (agents factices, aucun coût)
-uv run atm run --row 0    # une négociation (appelle l'API)
+uv run atm run --row 0    # une négociation (appelle l'API), puis approbation du superviseur (--auto-approve sinon)
+uv run atm check-proposal --row 0 --delay 40 --holding 30   # contrôles déterministes en JSON, 0 $
 uv run atm eval --n 20    # banc d'éval (~0,05 $ par vol)
 uv run atm audit --n 10000 --gates 4 --planned-gate first   # audit du statu quo, sans LLM, 0 $
 uv run atm calibrate      # recalibre la rotation et compare les modèles de prédiction, 0 $

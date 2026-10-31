@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 from enum import Enum
+from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, PrivateAttr
 
 
 class Role(str, Enum):
@@ -143,6 +144,19 @@ class Turn(BaseModel):
     next_selection: str | None = None  # why the next round's proposal was picked among the counters
 
 
+class HumanDecision(BaseModel):
+    """The qualified person's decision on the outcome. Agents and solver propose, a human decides (`atm run`).
+
+    "escalated" = the solver found no plan passing every hard check: nothing to approve, the supervisor takes over.
+    """
+
+    decision: Literal["approved", "rejected", "escalated"]
+    reason: str
+    decided_by: str = "approach supervisor"
+    decided_at: str  # UTC, ISO 8601
+    auto: bool = False  # --auto-approve: no human looked at it
+
+
 class Outcome(BaseModel):
     scenario: Disruption
     context: OpsContext
@@ -150,3 +164,5 @@ class Outcome(BaseModel):
     consensus: bool
     final: Proposal | None
     resolved_by: str  # "consensus" | "deterministic_fallback"
+    human_decision: HumanDecision | None = None  # None = pending (eval/audit never ask a human)
+    _log_path: str | None = PrivateAttr(default=None)

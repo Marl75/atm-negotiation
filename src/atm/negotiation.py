@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from pathlib import Path
 
 from .agents import ATCAgent, GroundAgent, PilotAgent
 from .config import LOG_DIR, MAX_ROUNDS
 from .constraints import check_all, hard_ok
 from .fallback import deterministic_resolution, min_gap
-from .protocol import LEVERS, Disruption, Evaluation, OpsContext, Outcome, Proposal, Role, Turn
+from .protocol import LEVERS, Disruption, Evaluation, HumanDecision, OpsContext, Outcome, Proposal, Role, Turn
 
 
 def naive_initial(s: Disruption, context: OpsContext) -> Proposal:
@@ -129,7 +130,21 @@ def select_counter(scenario: Disruption, context: OpsContext, evaluations: list[
 def _finish(outcome: Outcome) -> Outcome:
     LOG_DIR.mkdir(exist_ok=True)
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    (LOG_DIR / f"{outcome.scenario.flight_id}_{stamp}.jsonl").write_text(
+    path = LOG_DIR / f"{outcome.scenario.flight_id}_{stamp}.jsonl"
+    path.write_text(
         "\n".join(t.model_dump_json() for t in outcome.turns) + "\n" + outcome.model_dump_json(exclude={"turns"})
     )
+    outcome._log_path = str(path)
+    return outcome
+
+
+def record_decision(outcome: Outcome, decision: HumanDecision) -> Outcome:
+    """Attach the supervisor's decision and rewrite the log's last line (the outcome), so the log stays one file
+    with the same shape: turns, then the outcome, now with `human_decision` filled."""
+    outcome.human_decision = decision
+    if outcome._log_path:
+        path = Path(outcome._log_path)
+        lines = path.read_text().splitlines()
+        lines[-1] = outcome.model_dump_json(exclude={"turns"})
+        path.write_text("\n".join(lines) + "\n")
     return outcome

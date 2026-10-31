@@ -1,13 +1,20 @@
-"""Entry point: `uv run atm check` (setup check) or `uv run atm run --row N` (one negotiation)."""
+"""Entry point: `uv run atm check` (setup check), `uv run atm run --row N` (one negotiation, then the approach
+supervisor approves or rejects), `uv run atm check-proposal` (deterministic checks of any proposal, as JSON)."""
 
 from __future__ import annotations
 
 import argparse
+import json
 import os
+import sys
+from collections.abc import Callable
+from datetime import datetime, timezone
 
 from rich import print
+from rich.markup import escape
 
 from . import config
+from .protocol import HumanDecision, Outcome
 
 
 def check() -> None:
@@ -21,14 +28,87 @@ def check() -> None:
         print(f"[yellow]data: {e}[/yellow]")
 
 
-def run(row: int) -> None:
+def summary(out: Outcome) -> str:
+    """What the supervisor reads before deciding: the plan, every check of that plan, each agent's last word."""
+    from .constraints import check_all
+
+    s, f = out.scenario, out.final
+    lines = [f"[bold]{escape(s.flight_id)}[/bold] {s.origin} -> {s.destination}, sched. arrival {s.scheduled_arrival}, "
+             f"cause {s.cause}, resolved by {out.resolved_by} after {len(out.turns)} round(s)"]
+    if f is None:
+        lines += ["[bold red]ESCALATED: no safe option[/bold red] - the solver found no plan passing every hard "
+                  "(safety) check. Nothing to approve: the supervisor must decide the handling."]
+    else:
+        ground = f.revised_arrival_delay_min - f.holding_min - out.context.ready_arrival_delay_min
+        lines += ["", "[bold]Final plan[/bold]",
+                  f"  delay +{f.revised_arrival_delay_min} min  (airborne holding {f.holding_min} min, "
+                  f"ground hold at {s.origin} {ground} min)",
+                  f"  runway {f.runway}  gap {f.slot_gap_min} min  gate {f.gate}  reroute {f.reroute}",
+                  f"  rationale: {escape(f.rationale)}", "", "[bold]Checks[/bold] (deterministic, on the final plan)"]
+        for r in check_all(s, out.context, f):
+            mark = "[green]PASS[/green]" if r.passed else "[red]FAIL[/red]" if r.hard else "[yellow]FAIL[/yellow]"
+            lines.append(f"  {mark} {'hard' if r.hard else 'soft'} {r.role.value:6} {r.constraint}: {escape(r.detail)}")
+            lines.append(f"       [dim]{r.basis.value} - {escape(r.source)}[/dim]")
+    if out.turns:
+        lines += ["", f"[bold]Agents[/bold] (round {out.turns[-1].round})"]
+        for e in out.turns[-1].evaluations:
+            lines.append(f"  {e.role.value:6} {'accepts' if e.accept else 'rejects'}"
+                         + (f", violated: {escape(', '.join(e.violated_constraints))}" if e.violated_constraints else ""))
+            lines += [f"         - {escape(c)}" for c in e.concerns] or ["         - no concerns"]
+    return "\n".join(lines)
+
+
+def decide(out: Outcome, auto_approve: bool = False, ask: Callable[[str], str] = input) -> HumanDecision:
+    """The approach supervisor's decision. No silent None: a missing plan is recorded as an escalation."""
+    now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    if out.final is None:
+        reason = "no safe option, handed to the supervisor (auto)" if auto_approve else \
+            ask("No safe option. Supervisor, how will you handle this flight? ").strip() or "no reason given"
+        return HumanDecision(decision="escalated", reason=f"escalated: no safe option - {reason}",
+                             decided_at=now, auto=auto_approve)
+    if auto_approve:
+        return HumanDecision(decision="approved", reason="--auto-approve (non-interactive)", decided_at=now, auto=True)
+    while (answer := ask("Approach supervisor, approve this plan? [a]pprove / [r]eject: ").strip().lower()) \
+            not in ("a", "approve", "r", "reject"):
+        pass
+    reason = ask("Reason: ").strip() or "no reason given"
+    return HumanDecision(decision="approved" if answer.startswith("a") else "rejected", reason=reason, decided_at=now)
+
+
+def run(row: int, auto_approve: bool = False) -> None:
     from .data import build_scenario, disruptions, load_flights
-    from .negotiation import naive_initial, negotiate
+    from .negotiation import naive_initial, negotiate, record_decision
 
     flights = load_flights()
     s, c = build_scenario(flights, disruptions(flights).iloc[row])
     out = negotiate(s, c, naive_initial(s, c))
-    print(out.model_dump(exclude={"turns"}))
+    print(summary(out))
+    print()
+    d = record_decision(out, decide(out, auto_approve)).human_decision
+    print(f"[bold]{d.decision.upper()}[/bold] by {d.decided_by} at {d.decided_at}: {escape(d.reason)}")
+    print(f"-> {out._log_path}")
+
+
+def check_proposal(row: int | None, log: str | None, overrides: dict) -> None:
+    """Deterministic checks of a proposal as JSON on stdout. The scenario comes from a DOT row or a negotiation log
+    (its last line); the proposal starts from the status quo and takes JSON from stdin, then flags, on top."""
+    from .constraints import check_all, hard_ok
+    from .negotiation import naive_initial
+    from .protocol import Disruption, OpsContext, Proposal
+
+    if log:
+        last = json.loads([x for x in open(log).read().splitlines() if x.strip()][-1])
+        s, c = Disruption(**last["scenario"]), OpsContext(**last["context"])
+    else:
+        from .data import build_scenario, disruptions, load_flights
+        flights = load_flights()
+        s, c = build_scenario(flights, disruptions(flights).iloc[row or 0])
+    given = {} if sys.stdin.isatty() else json.loads(sys.stdin.read() or "{}")
+    p = Proposal(**naive_initial(s, c).model_dump() | given | {k: v for k, v in overrides.items() if v is not None})
+    checks = check_all(s, c, p)
+    sys.stdout.write(json.dumps({"flight_id": s.flight_id, "proposal": p.model_dump(), "hard_ok": hard_ok(checks),
+                                 "all_ok": all(r.passed for r in checks),
+                                 "checks": [r.model_dump(mode="json") for r in checks]}, indent=2) + "\n")
 
 
 def evaluate(n: int, seed: int, workers: int) -> None:
@@ -65,6 +145,18 @@ def main() -> None:
     sub.add_parser("check")
     r = sub.add_parser("run")
     r.add_argument("--row", type=int, default=0)
+    r.add_argument("--auto-approve", action="store_true", help="record an approval without asking (non-interactive)")
+    k = sub.add_parser("check-proposal", help="deterministic checks of a proposal as JSON (proposal JSON on stdin "
+                                              "and/or flags, unset fields = status quo), no LLM")
+    src = k.add_mutually_exclusive_group()
+    src.add_argument("--row", type=int, help="DOT disruption row (default 0)")
+    src.add_argument("--log", help="take scenario and context from a negotiation log (logs/*.jsonl), no CSV load")
+    k.add_argument("--delay", dest="revised_arrival_delay_min", type=int)
+    k.add_argument("--holding", dest="holding_min", type=int)
+    k.add_argument("--gap", dest="slot_gap_min", type=float)
+    k.add_argument("--runway")
+    k.add_argument("--gate")
+    k.add_argument("--rationale")
     e = sub.add_parser("eval")
     e.add_argument("--n", type=int, default=20)
     e.add_argument("--seed", type=int, default=0)
@@ -82,7 +174,10 @@ def main() -> None:
     elif args.cmd == "check":
         check()
     elif args.cmd == "run":
-        run(args.row)
+        run(args.row, args.auto_approve)
+    elif args.cmd == "check-proposal":
+        check_proposal(args.row, args.log, {f: getattr(args, f) for f in (
+            "revised_arrival_delay_min", "holding_min", "slot_gap_min", "runway", "gate", "rationale")})
     elif args.cmd == "audit":
         audit(args.n, args.seed, args.workers, args.gates, args.planned_gate)
     else:
