@@ -1,6 +1,11 @@
 # ATM Negotiation — Airbus challenge #2
 
-> **For judges (English overview).** The rest of this README is in French.
+> **Hackathon project.** Built solo by Marlène Menoire in one day for **Autonomous SG 2026** (Acacia Hackathon Society
+> × NUS Product Club, AI & Aerospace track, Airbus challenge #2, National University of Singapore, 31 October 2026).
+> It is a research prototype, not an operational tool: the flight data is the public 2015 US DOT delay dataset, the
+> airport limits are synthetic values provided by the organisers, and no real air traffic decision relies on it.
+
+**English overview below; the rest of this README is in French.**
 
 Three independent AI agents (ATC, pilot, ground ops) negotiate one disrupted flight from the 2015 DOT data in at most
 three turns. Each agent is a separate Claude call that sees only its own domain. **Deterministic rules from the
