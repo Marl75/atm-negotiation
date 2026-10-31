@@ -71,11 +71,26 @@ def merge_counters(current: Proposal, evaluations: list[Evaluation]) -> Proposal
 
 def select_counter(scenario: Disruption, context: OpsContext, evaluations: list[Evaluation],
                    current: Proposal | None = None) -> tuple[Proposal, Role | str, str] | None:
-    """Deterministic pick among all agents' counter-proposals and their merge (not the LLM's call), with a logged reason."""
+    """Deterministic pick among all agents' counter-proposals and their merge (not the LLM's call), with a logged reason.
+
+    Two non-LLM candidates are also scored, listed last so an agent proposal wins any tie:
+    - GROUND_HOLD: each candidate with airborne holding moved to a ground hold at origin (same arrival time).
+      Assumes the delay is known before departure, as in an FAA Ground Delay Program.
+    - SOLVER: the deterministic resolution.
+    """
     candidates = [(e.role, e.counter_proposal) for e in evaluations if e.counter_proposal]
+    if not candidates:
+        return None  # nobody proposes anything: stop negotiating, the fallback decides
     merged = merge_counters(current, evaluations) if current else None
     if merged:
         candidates.append(("MERGED", merged))
+    candidates += [(f"GROUND_HOLD<{getattr(who, 'value', who)}", p.model_copy(update={
+                       "holding_min": 0,
+                       "rationale": f"{p.rationale} | {p.holding_min} min airborne holding moved to a ground hold at origin"}))
+                   for who, p in list(candidates) if p.holding_min > 0]
+    solver = deterministic_resolution(scenario, context)
+    if solver:
+        candidates.append(("SOLVER", solver))
     ranked = sorted(((score(scenario, context, p), i, who, p) for i, (who, p) in enumerate(candidates)),
                     key=lambda x: (x[0], x[1]))
     if not ranked:

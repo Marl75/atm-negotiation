@@ -68,14 +68,29 @@ def test_select_counter_prefers_less_holding():
     # Round 1 of the real MQ3168 run: same slot, the pilot asked for 10 min holding instead of 15
     evs = [_ev(Role.ATC, holding_min=15, slot_gap_min=3.0), _ev(Role.PILOT, holding_min=10, slot_gap_min=3.0),
            _ev(Role.GROUND, holding_min=15, slot_gap_min=3.0)]
-    p, role, reason = select_counter(S, C, evs)
-    assert role == Role.PILOT and p.holding_min == 10 and "candidates" in reason
+    p, who, reason = select_counter(S, C, evs)
+    # The holding is moved to a ground hold at origin; the pilot still ranks above ATC among raw counters
+    assert who.startswith("GROUND_HOLD") and p.holding_min == 0
+    assert reason.index("| PILOT (") < reason.index("| ATC (")
 
 
 def test_select_counter_safety_beats_cost():
     # A cheaper counter on the closed runway must lose to a costlier safe one
     evs = [_ev(Role.ATC, runway="R1", holding_min=0), _ev(Role.GROUND, runway="R2", holding_min=10)]
-    assert select_counter(S, C, evs)[1] == Role.GROUND
+    p = select_counter(S, C, evs)[0]
+    assert p.runway == "R2" and hard_ok(check_all(S, C, p))
+
+
+def test_select_counter_solver_rescues_unsafe_counters():
+    evs = [_ev(Role.ATC, runway="R1"), _ev(Role.PILOT, runway="R1", holding_min=30)]
+    p, who, _ = select_counter(S, C, evs)
+    assert who == "SOLVER" and hard_ok(check_all(S, C, p))
+
+
+def test_select_counter_agent_wins_tie_with_solver():
+    solver = deterministic_resolution(S, C)
+    evs = [Evaluation(role=Role.ATC, accept=False, counter_proposal=solver)]
+    assert select_counter(S, C, evs)[1] == Role.ATC
 
 
 def test_select_counter_none_without_counters():
