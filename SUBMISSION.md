@@ -9,7 +9,7 @@ ATM Negotiation: three agents, one checked plan
 ATC, pilot and ground AI agents negotiate a disrupted flight in ≤ 3 turns; fixed rules decide legality, a supervisor approves.
 
 ## Short description (~100 words)
-When a gate is blocked or a crew runs out of duty time, the approach supervisor still coordinates by phone. We built
+When a gate is blocked or a crew runs out of duty time, the approach supervisor still coordinates by phone. I built
 three independent agents (ATC, pilot, ground), each a separate Claude call that sees only its own domain. They exchange
 structured messages for at most three turns. Deterministic rules from the challenge workbook decide what is legal; a
 solver decides when they disagree and logs why; the supervisor approves. On 10,000 disrupted 2015 DOT flights, 5.1 %
@@ -41,8 +41,8 @@ over 450 flights checked in the logs. Turnaround calibrated per airline (fit Jan
 departure-delay error from 16.7 to 14.4 min (−14 %, with the workbook minimum as a floor). Cost $0.04–0.09 and 8–14 s
 per flight.
 
-**Failure cases shown.** Crew-duty escalations; a data leak we found ourselves (a DOT delay column filled after the
-flight explained our "perfect" predictions), isolated and excluded from accuracy claims; run-to-run LLM variability
+**Failure cases shown.** Crew-duty escalations; a data leak I found myself (a DOT delay column filled after the
+flight explained my "perfect" predictions), isolated and excluded from accuracy claims; run-to-run LLM variability
 (~10 % of flights).
 
 **Limits and next steps.** Airport limits are the workbook's synthetic values; the 13-h crew rule is simplified (Part
@@ -57,22 +57,26 @@ Python 3.12, Claude (Opus 5.5) via the Anthropic SDK with schema-validated outpu
 offline tests, no API cost), uv. Data: DOT 2015 `flights.csv` (provided), challenge constraints workbook, FAA aircraft
 registry.
 
-## Links to fill in
+## Links
 - Repository: https://github.com/Marl75/atm-negotiation
-- Slide deck (8 slides, speaker notes = script): https://claude.ai/artifact/13M89yVAvkzhXaAfPJDyho (share it first)
-- Pitch script: https://claude.ai/artifact/EoRVEkVsGTZEc91nQ1Zjq9 (share it first)
-- Adoption page: https://claude.ai/artifact/SgUFqbSEUWMSdPyVgEVJch (share it first)
-- Deviations slide: https://claude.ai/artifact/7cLRCpXndiGV9hRumHaTg2 (share it first)
+- Project page: https://marl75.github.io/atm-negotiation/
+- Animated demo (Same flight, two evenings): https://marl75.github.io/atm-negotiation/pitch/two-evenings.html
+- Slide deck (9 slides, N = speaker notes): https://marl75.github.io/atm-negotiation/pitch/deck/
+- Negotiation viewer: https://marl75.github.io/atm-negotiation/viewer/ · scorecard: https://marl75.github.io/atm-negotiation/viewer/scorecard.html
+- Pitch script: https://marl75.github.io/atm-negotiation/pitch/pitch.html
+- Adoption page: https://marl75.github.io/atm-negotiation/pitch/monday-morning.html
+- Workbook deviations: https://marl75.github.io/atm-negotiation/pitch/workbook-deviations.html
+- Cover image: pitch/cover.png
 - Demo video (if asked): record the viewer replay of MQ3439 + `atm check-proposal`, ≤ 3 min
 
 ## Checklist before submitting
 - [ ] Submit early: the recorded submission time counts in "time discipline".
-- [ ] Repository pushed; README opens with the English overview.
-- [ ] Artifact links shared (Share menu), or exported to PDF/screenshots for the deck.
-- [ ] Deck includes the "Deviations from the workbook" slide (required by the rules of play).
+- [x] Repository pushed; README fully in English.
+- [x] Pitch materials public on GitHub Pages (links above).
+- [x] Deck includes the "Deviations from the workbook" slide (required by the rules of play).
 - [ ] `uv run pytest -q` passes on a fresh clone (needs `data/raw/flights.csv`, see README).
 - [ ] Pitch rehearsed and timed under 3 minutes.
-- [ ] No API key in the repo (`.env` is ignored; checked in git history).
+- [x] No API key in the repo (`.env` is ignored; checked in git history).
 
 ## Judging rubric mapping
 | Criterion | Weight | Where to point the judges |
