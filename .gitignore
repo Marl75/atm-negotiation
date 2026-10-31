@@ -5,3 +5,4 @@ data/raw/
 logs/*.jsonl
 .pytest_cache/
 /eval/
+.DS_Store
