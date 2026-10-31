@@ -238,6 +238,9 @@ def aggregate(dirs: list) -> str:
     dfs, cols, costs = [], [], []
     for d in map(Path, dirs):
         df = pd.read_csv(d / "results.csv")
+        for c in ("status_quo_hard_fails", "picks"):  # "" (no failure / no pick) comes back from CSV as NaN
+            if c in df:
+                df[c] = df[c].fillna("")
         dfs.append(df)
         cols.append(summarize(df))
         m = re.search(r"cost_usd\*\*: ([0-9.]+)", (d / "summary.md").read_text())

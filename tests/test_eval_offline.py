@@ -104,3 +104,11 @@ def test_stress_population_only_has_problem_flights():
 def test_budget_cap_stops_api_calls():
     df, summary, _ = run_eval(FLIGHTS, n=4, agents=[Fixer(r) for r in Role], workers=1, max_cost_usd=0)
     assert (df["error"] == "budget cap reached, not run").all() and summary["llm_calls"] == 0
+
+
+def test_report_reads_empty_failures_back_from_csv(tmp_path):
+    from atm.evaluate import aggregate
+
+    df, summary, out = run_eval(FLIGHTS, n=6, agents=[RubberStamp(r) for r in Role], workers=1)
+    report = aggregate([out])
+    assert f"| status_quo_unsafe | {summary['status_quo_unsafe']} |" in report
