@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 from .aircraft import category_from_model, heuristic_category
+from .calibration import DEFAULT_TURNAROUND_MIN, SOURCE as TURNAROUND_SOURCE, turnaround_min
 from .protocol import Basis, Disruption, OpsContext
 from .rules import CURFEWS
 from .traffic import Arrival, gate_occupancy, sequence, spacing_factor
 
 GATES_PER_AIRLINE = 4      # ASSUMPTION: gates this airline can use at the destination
 HOLDING_FUEL_MIN = 20      # ASSUMPTION: discretionary fuel above legal reserves
-MIN_TURNAROUND_MIN = 35    # ASSUMPTION: typical narrowbody turnaround 30-45 min
+MIN_TURNAROUND_MIN = DEFAULT_TURNAROUND_MIN  # was 35 (ASSUMPTION); now calibrated per airline, see calibration.py
 GROUND_CREW_SHIFT_END = "23:00"  # ASSUMPTION
 
 # field -> (basis, why). Printed in the README and attached to the log.
@@ -37,7 +38,7 @@ PROVENANCE: dict[str, tuple[Basis, str]] = {
                                            "schedule itself would exceed the limit"),
     "crew_shift_end": (Basis.ASSUMPTION, "Simulated end of ground-crew shift at destination"),
     "next_departure": (Basis.DATA, "Next leg of the same TAIL_NUMBER on the same day in flights.csv"),
-    "min_turnaround_min": (Basis.ASSUMPTION, "Typical narrowbody turnaround 30-45 min; airline-specific"),
+    "min_turnaround_min": (Basis.DATA, TURNAROUND_SOURCE),
 }
 
 
@@ -77,10 +78,10 @@ def build_context(s: Disruption, bank: list[Arrival] = (), n_runways: int = 2, n
         curfew=curfew and f"{curfew[0] // 60:02d}:{curfew[0] % 60:02d}-{curfew[1] // 60:02d}:{curfew[1] % 60:02d}",
         gates=gates,
         planned_gate=gates[0],
-        gates_busy_until_min=gate_occupancy(landed, s.airline, gates, MIN_TURNAROUND_MIN),
+        gates_busy_until_min=gate_occupancy(landed, s.airline, gates, turnaround_min(s.airline)),
         holding_fuel_available_min=HOLDING_FUEL_MIN,
         crew_fdp_end_min=crew_fdp_end_min,
         crew_shift_end=GROUND_CREW_SHIFT_END,
         next_departure=next_departure,
-        min_turnaround_min=MIN_TURNAROUND_MIN,
+        min_turnaround_min=turnaround_min(s.airline),
     )

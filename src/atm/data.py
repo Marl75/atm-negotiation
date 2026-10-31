@@ -9,7 +9,8 @@ import pandas as pd
 
 from .aircraft import category_from_model, heuristic_category, tail_types
 from .config import DATA_DIR
-from .context import MIN_TURNAROUND_MIN, build_context
+from .calibration import turnaround_min
+from .context import build_context
 from .protocol import Disruption, DotDelayCauses, OpsContext
 from .rules import REPORT_BEFORE_FIRST_DEP_MIN, max_fdp_hours
 from .traffic import Arrival
@@ -57,12 +58,13 @@ def enrich(df: pd.DataFrame) -> pd.DataFrame:
                                 "AIRLINE": "P_AL", "FLIGHT_NUMBER": "P_FN"})
     m = left.merge(prev, on=[*TAIL_DAY, "ORIGIN_AIRPORT"])
     m = m[m["P_ARR"] < m["DEP_MIN"]].sort_values("P_ARR").groupby("index").tail(1).set_index("index")
-    from_prev = (m["P_ARR"] + m["P_DELAY"] + MIN_TURNAROUND_MIN - m["DEP_MIN"]).clip(lower=0)
+    turn = df.loc[m.index, "AIRLINE"].map(turnaround_min)  # calibrated per airline (calibration.py)
+    from_prev = (m["P_ARR"] + m["P_DELAY"] + turn - m["DEP_MIN"]).clip(lower=0)
     df["KNOWN_DEP_DELAY"] = from_prev.reindex(df.index).fillna(df["LATE_AIRCRAFT_DELAY"]).fillna(0).astype(int)
     df["KNOWN_DELAY_SRC"] = "LATE_AIRCRAFT_DELAY of the row (proxy for the inbound ETA; previous leg not in the file)"
     df.loc[m.index, "KNOWN_DELAY_SRC"] = ("previous leg " + m["P_AL"] + m["P_FN"].astype(str) + " landed "
                                           + m["P_DELAY"].astype(int).astype(str) + " min late, + "
-                                          + str(MIN_TURNAROUND_MIN) + " min turnaround")
+                                          + turn.astype(int).astype(str) + " min turnaround (airline median)")
     df["READY_ARR"] = df["ARR_MIN"] + df["KNOWN_DEP_DELAY"]
 
     types = tail_types(frozenset(df["TAIL_NUMBER"].dropna().unique()))

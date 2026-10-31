@@ -48,6 +48,17 @@ def audit(n: int, seed: int, workers: int, gates: int, planned_gate: str) -> Non
     print(f"-> {out}")
 
 
+def calibrate() -> None:
+    from .calibration import TRAIN_MONTHS, compare_models, fit_turnaround, inbound_legs
+    from .data import load_flights
+
+    f = load_flights()
+    print(compare_models(f).to_string(index=False))
+    d = inbound_legs(f)
+    turn = fit_turnaround(d[d["MONTH"].isin(TRAIN_MONTHS)]).round().astype(int).to_dict()
+    print(f"\nturnaround per airline (Jan-Jun fit): {turn}")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(prog="atm")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -64,8 +75,11 @@ def main() -> None:
     a.add_argument("--workers", type=int, default=8)
     a.add_argument("--gates", type=int, default=4, help="gates per airline at destination (assumption)")
     a.add_argument("--planned-gate", choices=["first", "random"], default="first")
+    sub.add_parser("calibrate", help="refit the turnaround and compare prediction models (temporal split, no LLM)")
     args = ap.parse_args()
-    if args.cmd == "check":
+    if args.cmd == "calibrate":
+        calibrate()
+    elif args.cmd == "check":
         check()
     elif args.cmd == "run":
         run(args.row)
