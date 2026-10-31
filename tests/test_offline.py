@@ -3,7 +3,8 @@
 from atm.constraints import check_all, hard_ok
 from atm.context import PROVENANCE, build_context
 from atm.fallback import deterministic_resolution
-from atm.protocol import Basis, Disruption, OpsContext, Proposal
+from atm.negotiation import select_counter
+from atm.protocol import Basis, Disruption, Evaluation, OpsContext, Proposal, Role
 
 S = Disruption(
     flight_id="AA100-20150101", airline="AA", flight_number=100, tail_number="N123AA",
@@ -57,3 +58,25 @@ def test_turnaround_is_soft():
 def test_fallback_returns_safe_proposal():
     p = deterministic_resolution(S, C)
     assert p is not None and hard_ok(check_all(S, C, p))
+
+
+def _ev(role: Role, **kw) -> Evaluation:
+    return Evaluation(role=role, accept=False, counter_proposal=_p(**kw))
+
+
+def test_select_counter_prefers_less_holding():
+    # Round 1 of the real MQ3168 run: same slot, the pilot asked for 10 min holding instead of 15
+    evs = [_ev(Role.ATC, holding_min=15, slot_gap_min=3.0), _ev(Role.PILOT, holding_min=10, slot_gap_min=3.0),
+           _ev(Role.GROUND, holding_min=15, slot_gap_min=3.0)]
+    p, role, reason = select_counter(S, C, evs)
+    assert role == Role.PILOT and p.holding_min == 10 and "candidates" in reason
+
+
+def test_select_counter_safety_beats_cost():
+    # A cheaper counter on the closed runway must lose to a costlier safe one
+    evs = [_ev(Role.ATC, runway="R1", holding_min=0), _ev(Role.GROUND, runway="R2", holding_min=10)]
+    assert select_counter(S, C, evs)[1] == Role.GROUND
+
+
+def test_select_counter_none_without_counters():
+    assert select_counter(S, C, [Evaluation(role=Role.ATC, accept=False)]) is None

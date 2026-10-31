@@ -95,6 +95,7 @@ class Turn(BaseModel):
     proposed_by: Role | str
     evaluations: list[Evaluation]
     hard_checks: list[ConstraintResult]
+    next_selection: str | None = None  # why the next round's proposal was picked among the counters
 
 
 class Outcome(BaseModel):

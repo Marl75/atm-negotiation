@@ -8,7 +8,7 @@ from .agents import ATCAgent, GroundAgent, PilotAgent
 from .config import LOG_DIR, MAX_ROUNDS
 from .constraints import check_all, hard_ok
 from .fallback import deterministic_resolution
-from .protocol import Disruption, OpsContext, Outcome, Proposal, Turn
+from .protocol import Disruption, Evaluation, OpsContext, Outcome, Proposal, Role, Turn
 
 
 def negotiate(scenario: Disruption, context: OpsContext, initial: Proposal) -> Outcome:
@@ -27,14 +27,36 @@ def negotiate(scenario: Disruption, context: OpsContext, initial: Proposal) -> O
             return _finish(Outcome(scenario=scenario, context=context, turns=turns, consensus=True,
                                    final=proposal, resolved_by="consensus"))
 
-        # TODO: smarter counter-proposal selection (e.g. the one passing most checks)
-        counter = next((e for e in evaluations if e.counter_proposal), None)
-        if counter is None:
+        picked = select_counter(scenario, context, evaluations)
+        if picked is None:
             break
-        proposal, proposer = counter.counter_proposal, counter.role
+        proposal, proposer, turns[-1].next_selection = picked
 
     return _finish(Outcome(scenario=scenario, context=context, turns=turns, consensus=False,
                            final=deterministic_resolution(scenario, context), resolved_by="deterministic_fallback"))
+
+
+def score(scenario: Disruption, context: OpsContext, p: Proposal) -> tuple[int, int, int, int]:
+    """Lower is better, compared in order: safety first, then cost.
+
+    1. hard (safety) failures   2. soft (cost) failures
+    3. airborne holding minutes (~4-5x the cost of a ground minute, EUROCONTROL)   4. total delay
+    """
+    checks = check_all(scenario, context, p)
+    return (sum(not c.passed for c in checks if c.hard), sum(not c.passed for c in checks if not c.hard),
+            p.holding_min, p.revised_arrival_delay_min)
+
+
+def select_counter(scenario: Disruption, context: OpsContext,
+                   evaluations: list[Evaluation]) -> tuple[Proposal, Role, str] | None:
+    """Deterministic pick among all agents' counter-proposals (not the LLM's call), with a logged reason."""
+    ranked = sorted(((score(scenario, context, e.counter_proposal), i, e)
+                     for i, e in enumerate(evaluations) if e.counter_proposal), key=lambda x: (x[0], x[1]))
+    if not ranked:
+        return None
+    best_score, _, best = ranked[0]
+    reason = " | ".join(f"{e.role.value} (hard_fail, soft_fail, holding, delay)={s}" for s, _, e in ranked)
+    return best.counter_proposal, best.role, f"picked {best.role.value} {best_score}; candidates: {reason}"
 
 
 def _finish(outcome: Outcome) -> Outcome:
