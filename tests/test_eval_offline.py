@@ -56,3 +56,28 @@ def test_final_author_and_source_split():
     assert set(summary["slot_model_MAE_vs_real_arrival_min"]) == {"prev_leg", "proxy_LATE_AIRCRAFT_DELAY_leaky"}
     split = summary["slot_model_MAE_vs_real_arrival_min"]
     assert split["prev_leg"]["n"] + split["proxy_LATE_AIRCRAFT_DELAY_leaky"]["n"] == 6
+
+
+def test_dot_cause_minutes_reach_agents_but_not_the_rules():
+    from atm.agents import ATCAgent, GroundAgent, PilotAgent
+    from atm.constraints import check_all
+    from atm.data import build_scenario, disruptions
+    from atm.negotiation import naive_initial
+
+    r = disruptions(FLIGHTS).iloc[356]
+    s, c = build_scenario(FLIGHTS, r)
+    assert s.dot_delay_causes_min.late_aircraft == r["LATE_AIRCRAFT_DELAY"]
+    # Agents see them (brief: pass the row parameters to the 3 agents)
+    for a in (ATCAgent(), PilotAgent(), GroundAgent()):
+        assert '"dot_delay_causes_min"' in a.prompt(s, c, naive_initial(s, c))
+    # Rules don't: inflate the minutes, nothing deterministic moves
+    s2 = s.model_copy(update={"dot_delay_causes_min": s.dot_delay_causes_min.model_copy(
+        update={"weather": 999, "late_aircraft": 999, "air_system": 999, "airline": 999, "security": 999})})
+    assert naive_initial(s2, c) == naive_initial(s, c)
+    assert deterministic_resolution(s2, c) == deterministic_resolution(s, c)
+    p = naive_initial(s, c)
+    assert [x.passed for x in check_all(s2, c, p)] == [x.passed for x in check_all(s, c, p)]
+    # Columns the context never reads: changing them leaves the context identical
+    r2 = r.copy()
+    r2[["AIR_SYSTEM_DELAY", "AIRLINE_DELAY", "SECURITY_DELAY"]] = 999
+    assert build_scenario(FLIGHTS, r2)[1] == c

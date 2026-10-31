@@ -10,14 +10,14 @@ import pandas as pd
 from .aircraft import category_from_model, heuristic_category, tail_types
 from .config import DATA_DIR
 from .context import MIN_TURNAROUND_MIN, build_context
-from .protocol import Disruption, OpsContext
+from .protocol import Disruption, DotDelayCauses, OpsContext
 from .rules import REPORT_BEFORE_FIRST_DEP_MIN, max_fdp_hours
 from .traffic import Arrival
 
 USECOLS = [
     "YEAR", "MONTH", "DAY", "AIRLINE", "FLIGHT_NUMBER", "TAIL_NUMBER",
     "ORIGIN_AIRPORT", "DESTINATION_AIRPORT", "SCHEDULED_DEPARTURE", "SCHEDULED_ARRIVAL",
-    "DISTANCE", "WEATHER_DELAY", "LATE_AIRCRAFT_DELAY", "AIR_SYSTEM_DELAY",
+    "DISTANCE", "WEATHER_DELAY", "LATE_AIRCRAFT_DELAY", "AIR_SYSTEM_DELAY", "AIRLINE_DELAY", "SECURITY_DELAY",
     # Realised outcomes: evaluation baseline, and previous-leg arrival (known before our departure).
     # Never passed to the agents for the flight itself (not in Disruption).
     "ARRIVAL_DELAY", "DEPARTURE_DELAY",
@@ -131,7 +131,17 @@ def row_to_disruption(row: pd.Series) -> Disruption:
         known_delay_source=row["KNOWN_DELAY_SRC"],
         # Scenario type only: the cause minutes themselves are attributed after the flight
         cause="WEATHER" if float(row["WEATHER_DELAY"] or 0) > 15 else "LATE_AIRCRAFT",
+        # Brief: "pass the parameters in that row into the 3 AI agents". Agents only, flagged as post-hoc.
+        dot_delay_causes_min=DotDelayCauses(**{k: _minutes_or_0(row[c]) for k, c in DOT_CAUSE_COLUMNS.items()}),
     )
+
+
+DOT_CAUSE_COLUMNS = {"weather": "WEATHER_DELAY", "late_aircraft": "LATE_AIRCRAFT_DELAY",
+                     "air_system": "AIR_SYSTEM_DELAY", "airline": "AIRLINE_DELAY", "security": "SECURITY_DELAY"}
+
+
+def _minutes_or_0(v) -> float:
+    return 0.0 if pd.isna(v) else float(v)
 
 
 def arrival_bank(df_all: pd.DataFrame, row: pd.Series) -> list[Arrival]:

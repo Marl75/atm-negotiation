@@ -13,11 +13,26 @@ class Role(str, Enum):
     GROUND = "GROUND"
 
 
+class DotDelayCauses(BaseModel):
+    """The row's DOT delay-cause minutes, passed to the agents as the brief asks ("pass the parameters in that row").
+
+    Attributed by the DOT after the flight, and they sum exactly to ARRIVAL_DELAY: context on the kind of disruption,
+    not a forecast. No deterministic code (slot, checks, solver, audit) reads them.
+    """
+
+    weather: float
+    late_aircraft: float
+    air_system: float
+    airline: float
+    security: float
+    note: str = "DOT attribution made after the flight; not available at decision time; not used by the checks"
+
+
 class Disruption(BaseModel):
     """One row of the DOT 2015 dataset, turned into a negotiation scenario.
 
-    Only what is known before the decision: the DOT delay-cause minutes (WEATHER_DELAY, LATE_AIRCRAFT_DELAY...)
-    are attributed after the flight and never reach the agents.
+    Deterministic fields are what is known before the decision. The DOT delay-cause minutes are attached in
+    `dot_delay_causes_min` for the agents only, as the brief requires, and flagged as post-hoc.
     """
 
     flight_id: str
@@ -34,6 +49,7 @@ class Disruption(BaseModel):
     known_departure_delay_min: int  # inbound aircraft late: earliest departure vs schedule, known before departure
     known_delay_source: str
     cause: str  # "WEATHER" (scenario: destination capacity cut) | "LATE_AIRCRAFT"
+    dot_delay_causes_min: DotDelayCauses | None = None  # agents only, see DotDelayCauses
 
 
 class Basis(str, Enum):
