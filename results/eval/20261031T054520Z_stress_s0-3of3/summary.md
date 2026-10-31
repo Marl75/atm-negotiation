@@ -1,0 +1,36 @@
+# Eval n=35 seed=0 stress_s0-3of3
+
+- **cases**: 35
+- **errors**: 0
+- **consensus_rate**: 0.51
+- **fallback_rate**: 0.49
+- **consensus_within_3_rounds**: 18
+- **mean_rounds**: 1.57
+- **escalated_to_human_no_safe_option**: 18/35
+- **final_solutions_safe_when_solvable**: 17/17
+- **agent_unsafe_accepts_caught**: 70
+- **status_quo_unsafe**: 33/35
+- **status_quo_failures**: {'flight_crew_duty': 17, 'gate_available': 15, 'airport_curfew': 1}
+- **mean_holding_status_quo**: 0.4
+- **mean_holding_negotiated**: 0.0
+- **mean_holding_fallback**: 0.0
+- **fuel_saved_kg_per_flight_vs_status_quo**: 31.0
+- **mean_delay_negotiated**: 105.1
+- **mean_delay_fallback**: 80.5
+- **mean_soft_fails_negotiated**: 0.78
+- **mean_soft_fails_fallback**: 0.76
+- **final_author_share**: {'FALLBACK': 0.49, 'GROUND': 0.34, 'GROUND_HOLD<GROUND': 0.09, 'ATC': 0.03, 'PILOT': 0.03, 'GROUND_HOLD<consensus': 0.03}
+- **mean_holding_by_final_author**: {'ATC': 0.0, 'FALLBACK': nan, 'GROUND': 0.0, 'GROUND_HOLD<GROUND': 0.0, 'GROUND_HOLD<consensus': 0.0, 'PILOT': 0.0}
+- **selection_picks**: {'GROUND': 12, 'GROUND_HOLD<GROUND': 3, 'PILOT': 3, 'ATC': 1, 'GROUND_HOLD<consensus': 1}
+- **known_delay_from_prev_leg_share**: 0.69
+- **known_departure_delay_MAE_vs_real_min**: {'prev_leg': {'n': 24, 'value': 16.0}, 'proxy_LATE_AIRCRAFT_DELAY_leaky': {'n': 11, 'value': 39.9}}
+- **slot_model_MAE_vs_real_arrival_min**: {'prev_leg': {'n': 24, 'value': 19.8}, 'proxy_LATE_AIRCRAFT_DELAY_leaky': {'n': 11, 'value': 38.6}}
+- **slot_model_bias_vs_real_arrival_min**: {'prev_leg': {'n': 24, 'value': -2.5}, 'proxy_LATE_AIRCRAFT_DELAY_leaky': {'n': 11, 'value': -38.6}}
+- **slot_exact_match_share**: {'prev_leg': {'n': 24, 'value': 8.3}, 'proxy_LATE_AIRCRAFT_DELAY_leaky': {'n': 11, 'value': 36.4}}
+- **aircraft_type_from_faa_registry**: 0.66
+- **next_leg_cases**: 9
+- **next_leg_delay_MAE_min**: {'prev_leg': {'n': 24, 'value': 17.6}, 'proxy_LATE_AIRCRAFT_DELAY_leaky': {'n': 11, 'value': 86.5}}
+- **next_leg_delay_bias_min**: -38.2
+- **mean_latency_s**: 13.7
+- **llm_calls**: 165
+- **cost_usd**: 2.84

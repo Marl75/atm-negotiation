@@ -1,0 +1,36 @@
+# Eval n=50 seed=0 prev_leg_s0-1of1
+
+- **cases**: 50
+- **errors**: 0
+- **consensus_rate**: 0.96
+- **fallback_rate**: 0.04
+- **consensus_within_3_rounds**: 48
+- **mean_rounds**: 1.02
+- **escalated_to_human_no_safe_option**: 2/50
+- **final_solutions_safe_when_solvable**: 48/48
+- **agent_unsafe_accepts_caught**: 6
+- **status_quo_unsafe**: 2/50
+- **status_quo_failures**: {'flight_crew_duty': 2}
+- **mean_holding_status_quo**: 0.0
+- **mean_holding_negotiated**: 0.0
+- **mean_holding_fallback**: 0.0
+- **fuel_saved_kg_per_flight_vs_status_quo**: 0.0
+- **mean_delay_negotiated**: 58.1
+- **mean_delay_fallback**: 58.1
+- **mean_soft_fails_negotiated**: 0.67
+- **mean_soft_fails_fallback**: 0.67
+- **final_author_share**: {'ATC': 0.96, 'FALLBACK': 0.04}
+- **mean_holding_by_final_author**: {'ATC': 0.0, 'FALLBACK': nan}
+- **selection_picks**: {'PILOT': 1}
+- **known_delay_from_prev_leg_share**: 1.0
+- **known_departure_delay_MAE_vs_real_min**: {'prev_leg': {'n': 50, 'value': 30.9}, 'proxy_LATE_AIRCRAFT_DELAY_leaky': {'n': 0, 'value': None}}
+- **slot_model_MAE_vs_real_arrival_min**: {'prev_leg': {'n': 50, 'value': 37.9}, 'proxy_LATE_AIRCRAFT_DELAY_leaky': {'n': 0, 'value': None}}
+- **slot_model_bias_vs_real_arrival_min**: {'prev_leg': {'n': 50, 'value': -29.2}, 'proxy_LATE_AIRCRAFT_DELAY_leaky': {'n': 0, 'value': None}}
+- **slot_exact_match_share**: {'prev_leg': {'n': 50, 'value': 2.0}, 'proxy_LATE_AIRCRAFT_DELAY_leaky': {'n': 0, 'value': None}}
+- **aircraft_type_from_faa_registry**: 0.36
+- **next_leg_cases**: 15
+- **next_leg_delay_MAE_min**: {'prev_leg': {'n': 50, 'value': 30.9}, 'proxy_LATE_AIRCRAFT_DELAY_leaky': {'n': 0, 'value': None}}
+- **next_leg_delay_bias_min**: -27.8
+- **mean_latency_s**: 8.1
+- **llm_calls**: 153
+- **cost_usd**: 2.06

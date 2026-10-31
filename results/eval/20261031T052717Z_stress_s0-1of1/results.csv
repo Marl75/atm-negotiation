@@ -1,0 +1,36 @@
+flight_id,cause,origin,destination,aircraft_type,wake_category,known_delay_from_prev_leg,known_departure_delay,real_departure_delay,slot_delay,real_arrival_delay,has_next_leg,status_quo_holding,status_quo_hard_fails,escalated,fallback_holding,fallback_delay,fallback_soft_fails,error,latency_s,resolved_by,final_author,picks,consensus,rounds,unsafe_accepts,final_hard_ok,final_holding,final_delay,final_soft_fails,pred_next_dep_delay,real_next_dep_delay
+AA1330-20150718,LATE_AIRCRAFT,ELP,DFW,,LARGE,True,157,153,157,156,False,0,gate_available,False,0.0,157.0,0.0,,16.2,consensus,GROUND,GROUND,True,2,2,True,0.0,157.0,0.0,,
+MQ3439-20150627,LATE_AIRCRAFT,MOB,DFW,,LARGE,True,45,35,45,41,False,0,gate_available,False,0.0,45.0,0.0,,14.4,consensus,GROUND,GROUND,True,2,2,True,0.0,45.0,0.0,,
+WN1347-20150724,LATE_AIRCRAFT,BWI,FLL,BOEING 737-3H4,LARGE,True,105,119,105,101,True,0,flight_crew_duty,True,,,,,30.4,deterministic_fallback,FALLBACK,PILOT|PILOT,False,3,6,False,,,,,
+NK199-20150713,LATE_AIRCRAFT,IAH,LAS,,LARGE,True,94,104,94,90,False,0,gate_available,False,0.0,94.0,0.0,,15.3,consensus,GROUND,GROUND,True,2,2,True,0.0,94.0,0.0,,
+WN3045-20150820,WEATHER,LAS,BWI,BOEING 737-8H4,LARGE,False,0,121,1,105,True,1,,False,0.0,1.0,0.0,,15.4,consensus,GROUND_HOLD<consensus,GROUND_HOLD<consensus,True,2,0,True,0.0,1.0,0.0,0.0,100.0
+AA341-20151203,WEATHER,MIA,MSY,,LARGE,False,0,30,2,24,False,2,,False,0.0,2.0,0.0,,13.9,consensus,GROUND_HOLD<consensus,GROUND_HOLD<consensus,True,2,0,True,0.0,2.0,0.0,,
+WN539-20150708,LATE_AIRCRAFT,IAD,DEN,BOEING 737-7H4,LARGE,False,26,56,26,26,False,0,flight_crew_duty,True,,,,,9.0,deterministic_fallback,FALLBACK,,False,1,2,False,,,,,
+NK567-20150528,LATE_AIRCRAFT,DTW,ATL,AIRBUS A319-132,LARGE,True,58,68,60,75,True,2,,False,0.0,60.0,2.0,,17.4,consensus,GROUND_HOLD<consensus,GROUND_HOLD<consensus,True,2,0,True,0.0,60.0,2.0,55.0,68.0
+DL2779-20150916,LATE_AIRCRAFT,SFO,LAX,,LARGE,True,150,136,150,115,False,0,flight_crew_duty,True,,,,,8.0,deterministic_fallback,FALLBACK,,False,1,2,False,,,,,
+EV5433-20150610,LATE_AIRCRAFT,CHA,DTW,,LARGE,True,126,113,126,124,False,0,flight_crew_duty,True,,,,,7.4,deterministic_fallback,FALLBACK,,False,1,2,False,,,,,
+AA1445-20150510,LATE_AIRCRAFT,SAN,DFW,ANDURIL INDUSTRIES INC ROADRUNNER,LARGE,True,274,313,274,295,False,0,flight_crew_duty,True,,,,,29.5,deterministic_fallback,FALLBACK,PILOT|PILOT,False,3,6,False,,,,,
+DL2335-20150818,LATE_AIRCRAFT,MSP,AUS,AIRBUS A319-114,LARGE,True,34,21,34,29,False,0,gate_available,False,0.0,34.0,0.0,,18.0,consensus,GROUND,GROUND,True,2,2,True,0.0,34.0,0.0,,
+DL2532-20150930,LATE_AIRCRAFT,BOS,LAX,BOEING 737-832,LARGE,False,27,61,27,32,False,0,gate_available,False,0.0,27.0,1.0,,16.9,consensus,GROUND,GROUND,True,2,2,True,0.0,27.0,1.0,,
+WN158-20150104,LATE_AIRCRAFT,STL,RSW,BOEING 737-7BD,LARGE,False,96,102,96,115,True,0,flight_crew_duty,True,,,,,7.7,deterministic_fallback,FALLBACK,,False,1,2,False,,,,,
+WN1888-20150725,LATE_AIRCRAFT,RSW,PIT,BOEING 737-3H4,LARGE,True,111,96,111,96,False,0,flight_crew_duty,True,,,,,9.1,deterministic_fallback,FALLBACK,,False,1,2,False,,,,,
+DL2282-20150518,LATE_AIRCRAFT,LGA,MCO,MCDONNELL DOUGLAS AIRCRAFT CO MD-88,LARGE,True,183,178,183,193,False,0,flight_crew_duty,True,,,,,8.4,deterministic_fallback,FALLBACK,,False,1,2,False,,,,,
+EV5308-20150817,LATE_AIRCRAFT,ATL,MGM,BOMBARDIER INC CL-600-2B19,LARGE,True,113,108,113,109,False,0,flight_crew_duty,True,,,,,17.1,deterministic_fallback,FALLBACK,,False,1,2,False,,,,,
+EV4624-20150616,LATE_AIRCRAFT,IAH,MFE,EMBRAER EMB-145LR,LARGE,True,148,172,148,176,False,0,flight_crew_duty,True,,,,,8.5,deterministic_fallback,FALLBACK,,False,1,2,False,,,,,
+DL2160-20150518,LATE_AIRCRAFT,MIA,ATL,BOEING 757-232,B757,True,35,40,41,26,False,6,,False,0.0,41.0,1.0,,17.8,consensus,PILOT,PILOT,True,2,0,True,0.0,41.0,1.0,,
+WN1577-20150908,LATE_AIRCRAFT,MDW,CLE,,LARGE,True,98,94,98,85,False,0,flight_crew_duty,True,,,,,8.2,deterministic_fallback,FALLBACK,,False,1,2,False,,,,,
+WN805-20150106,LATE_AIRCRAFT,MSP,MDW,BOEING 737-7H4,LARGE,True,54,51,54,55,True,0,gate_available,False,0.0,54.0,1.0,,18.2,consensus,GROUND,GROUND,True,2,2,True,0.0,54.0,1.0,49.0,49.0
+OO2594-20150205,LATE_AIRCRAFT,SMF,LAX,BOMBARDIER INC CL-600-2B19,LARGE,True,128,118,128,119,True,0,flight_crew_duty,True,,,,,8.8,deterministic_fallback,FALLBACK,,False,1,2,False,,,,,
+OO5285-20151227,LATE_AIRCRAFT,FAR,ORD,BOMBARDIER INC CL-600-2B19,LARGE,True,54,42,54,38,False,0,flight_crew_duty|gate_available,True,,,,,18.6,deterministic_fallback,FALLBACK,GROUND,False,2,3,False,,,,,
+EV5460-20150531,LATE_AIRCRAFT,BMI,ATL,BOMBARDIER INC CL-600-2C10,LARGE,True,187,174,192,243,True,5,,False,0.0,192.0,2.0,,18.1,consensus,GROUND_HOLD<consensus,GROUND_HOLD<consensus,True,2,0,True,0.0,192.0,2.0,197.0,248.0
+WN12-20150518,LATE_AIRCRAFT,LGA,DEN,BOEING 737-7H4,LARGE,True,169,174,169,211,False,0,flight_crew_duty,True,,,,,26.8,deterministic_fallback,FALLBACK,PILOT|PILOT,False,3,6,False,,,,,
+WN1990-20150702,LATE_AIRCRAFT,RDU,MCO,BOEING 737-3H4,LARGE,True,137,143,137,155,True,0,flight_crew_duty,True,,,,,10.4,deterministic_fallback,FALLBACK,,False,1,2,False,,,,,
+WN2370-20150104,LATE_AIRCRAFT,LAX,LAS,BOEING 737-7BD,LARGE,True,86,78,89,91,True,3,,False,0.0,89.0,2.0,,17.3,consensus,GROUND_HOLD<consensus,GROUND_HOLD<consensus,True,2,0,True,0.0,89.0,2.0,89.0,87.0
+WN3028-20150410,LATE_AIRCRAFT,BNA,HOU,BOEING 737-76N,LARGE,True,138,133,138,141,True,0,flight_crew_duty,True,,,,,8.4,deterministic_fallback,FALLBACK,,False,1,2,False,,,,,
+AA1563-20150424,LATE_AIRCRAFT,AUS,DFW,MCDONNELL DOUGLAS DC-9-82(MD-82),LARGE,True,204,182,204,177,False,0,flight_crew_duty,True,,,,,8.6,deterministic_fallback,FALLBACK,,False,1,2,False,,,,,
+OO5544-20151227,LATE_AIRCRAFT,DEN,COS,BOMBARDIER INC CL-600-2C10,LARGE,False,365,371,365,365,False,0,flight_crew_duty,True,,,,,8.2,deterministic_fallback,FALLBACK,,False,1,2,False,,,,,
+EV5161-20150204,LATE_AIRCRAFT,MCI,DTW,,LARGE,True,80,74,80,67,True,0,gate_available,False,0.0,80.0,1.0,,17.1,consensus,GROUND,GROUND,True,2,2,True,0.0,80.0,1.0,58.0,44.0
+OO5454-20150111,LATE_AIRCRAFT,SMF,SFO,EMBRAER EMB-120ER,LARGE,True,118,102,118,85,False,0,gate_available,False,0.0,118.0,0.0,,16.6,consensus,GROUND,GROUND,True,2,2,True,0.0,118.0,0.0,,
+B6170-20150330,LATE_AIRCRAFT,FLL,BOS,EMBRAER ERJ 190-100 IGW,LARGE,True,82,86,82,81,True,0,flight_crew_duty,True,,,,,8.0,deterministic_fallback,FALLBACK,,False,1,2,False,,,,,
+MQ3157-20150410,LATE_AIRCRAFT,ATL,LGA,,LARGE,False,162,175,162,171,False,0,flight_crew_duty,True,,,,,9.3,deterministic_fallback,FALLBACK,,False,1,2,False,,,,,
+UA208-20150625,WEATHER,MCO,IAD,AIRBUS A320-232,LARGE,False,62,180,62,162,True,0,gate_available,False,0.0,62.0,1.0,,16.9,consensus,GROUND,GROUND,True,2,2,True,0.0,62.0,1.0,43.0,163.0

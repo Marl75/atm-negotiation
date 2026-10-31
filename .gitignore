@@ -4,4 +4,4 @@ __pycache__/
 data/raw/
 logs/*.jsonl
 .pytest_cache/
-eval/
+/eval/

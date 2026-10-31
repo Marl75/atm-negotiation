@@ -1,0 +1,36 @@
+# Eval n=35 seed=0 stress_s0-2of3
+
+- **cases**: 35
+- **errors**: 0
+- **consensus_rate**: 0.69
+- **fallback_rate**: 0.31
+- **consensus_within_3_rounds**: 24
+- **mean_rounds**: 1.74
+- **escalated_to_human_no_safe_option**: 11/35
+- **final_solutions_safe_when_solvable**: 24/24
+- **agent_unsafe_accepts_caught**: 50
+- **status_quo_unsafe**: 23/35
+- **status_quo_failures**: {'gate_available': 11, 'flight_crew_duty': 11, 'final_reserve_fuel': 1}
+- **mean_holding_status_quo**: 1.3
+- **mean_holding_negotiated**: 0.0
+- **mean_holding_fallback**: 0.0
+- **fuel_saved_kg_per_flight_vs_status_quo**: 72.0
+- **mean_delay_negotiated**: 61.2
+- **mean_delay_fallback**: 61.2
+- **mean_soft_fails_negotiated**: 0.62
+- **mean_soft_fails_fallback**: 0.62
+- **final_author_share**: {'GROUND_HOLD<consensus': 0.31, 'FALLBACK': 0.31, 'GROUND': 0.26, 'GROUND_HOLD<GROUND': 0.06, 'PILOT': 0.06}
+- **mean_holding_by_final_author**: {'FALLBACK': nan, 'GROUND': 0.0, 'GROUND_HOLD<GROUND': 0.0, 'GROUND_HOLD<consensus': 0.0, 'PILOT': 0.0}
+- **selection_picks**: {'GROUND_HOLD<consensus': 11, 'GROUND': 9, 'PILOT': 4, 'GROUND_HOLD<GROUND': 2}
+- **known_delay_from_prev_leg_share**: 0.6
+- **known_departure_delay_MAE_vs_real_min**: {'prev_leg': {'n': 21, 'value': 14.0}, 'proxy_LATE_AIRCRAFT_DELAY_leaky': {'n': 14, 'value': 42.9}}
+- **slot_model_MAE_vs_real_arrival_min**: {'prev_leg': {'n': 21, 'value': 20.3}, 'proxy_LATE_AIRCRAFT_DELAY_leaky': {'n': 14, 'value': 57.3}}
+- **slot_model_bias_vs_real_arrival_min**: {'prev_leg': {'n': 21, 'value': 1.7}, 'proxy_LATE_AIRCRAFT_DELAY_leaky': {'n': 14, 'value': -57.0}}
+- **slot_exact_match_share**: {'prev_leg': {'n': 21, 'value': 0.0}, 'proxy_LATE_AIRCRAFT_DELAY_leaky': {'n': 14, 'value': 7.1}}
+- **aircraft_type_from_faa_registry**: 0.66
+- **next_leg_cases**: 13
+- **next_leg_delay_MAE_min**: {'prev_leg': {'n': 21, 'value': 39.4}, 'proxy_LATE_AIRCRAFT_DELAY_leaky': {'n': 14, 'value': 58.0}}
+- **next_leg_delay_bias_min**: -41.8
+- **mean_latency_s**: 14.0
+- **llm_calls**: 183
+- **cost_usd**: 3.15

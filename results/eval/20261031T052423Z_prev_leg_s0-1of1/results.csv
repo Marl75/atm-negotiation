@@ -1,0 +1,51 @@
+flight_id,cause,origin,destination,aircraft_type,wake_category,known_delay_from_prev_leg,known_departure_delay,real_departure_delay,slot_delay,real_arrival_delay,has_next_leg,status_quo_holding,status_quo_hard_fails,escalated,fallback_holding,fallback_delay,fallback_soft_fails,error,latency_s,resolved_by,final_author,picks,consensus,rounds,unsafe_accepts,final_hard_ok,final_holding,final_delay,final_soft_fails,pred_next_dep_delay,real_next_dep_delay
+MQ3106-20150628,WEATHER,DRO,DFW,,LARGE,True,0,42,0,34,False,0,,False,0.0,0.0,0.0,,8.8,consensus,ATC,,True,1,0,True,0.0,0.0,0.0,,
+AA2333-20150424,WEATHER,DFW,ORF,MCDONNELL DOUGLAS DC-9-82(MD-82),LARGE,True,47,105,47,97,False,0,,False,0.0,47.0,0.0,,7.8,consensus,ATC,,True,1,0,True,0.0,47.0,0.0,,
+MQ2934-20150409,WEATHER,GRB,ORD,,LARGE,True,23,86,23,92,True,0,,False,0.0,23.0,1.0,,8.8,consensus,ATC,,True,1,0,True,0.0,23.0,1.0,14.0,65.0
+MQ3690-20150508,WEATHER,DFW,GSP,,LARGE,True,88,110,88,106,False,0,,False,0.0,88.0,0.0,,8.5,consensus,ATC,,True,1,0,True,0.0,88.0,0.0,,
+MQ3673-20150112,WEATHER,ORD,CMI,,LARGE,True,0,79,0,125,False,0,,False,0.0,0.0,0.0,,9.2,consensus,ATC,,True,1,0,True,0.0,0.0,0.0,,
+MQ3233-20150304,WEATHER,ORD,XNA,AIRBUS A320-214,LARGE,True,36,43,36,73,False,0,,False,0.0,36.0,0.0,,8.0,consensus,ATC,,True,1,0,True,0.0,36.0,0.0,,
+UA616-20150630,WEATHER,DCA,IAH,AIRBUS INDUSTRIE A319-131,LARGE,True,135,138,135,137,False,0,,False,0.0,135.0,1.0,,8.2,consensus,ATC,,True,1,0,True,0.0,135.0,1.0,,
+OO5417-20150121,WEATHER,DEN,HYS,,LARGE,True,66,103,66,125,True,0,,False,0.0,66.0,2.0,,8.2,consensus,ATC,,True,1,0,True,0.0,66.0,2.0,71.0,125.0
+B6316-20150126,WEATHER,JFK,SYR,,LARGE,True,30,26,30,42,True,0,,False,0.0,30.0,1.0,,7.3,consensus,ATC,,True,1,0,True,0.0,30.0,1.0,28.0,36.0
+MQ3280-20150111,WEATHER,ORD,RST,,LARGE,True,76,87,76,154,False,0,,False,0.0,76.0,1.0,,7.3,consensus,ATC,,True,1,0,True,0.0,76.0,1.0,,
+MQ3070-20151230,WEATHER,ORD,HPN,,LARGE,True,41,125,41,115,False,0,,False,0.0,41.0,1.0,,8.3,consensus,ATC,,True,1,0,True,0.0,41.0,1.0,,
+AA985-20150213,WEATHER,ORD,MIA,,LARGE,True,47,72,47,68,True,0,,False,0.0,47.0,1.0,,8.3,consensus,ATC,,True,1,0,True,0.0,47.0,1.0,14.0,42.0
+MQ3601-20150917,WEATHER,ORD,MDT,,LARGE,True,85,125,85,125,False,0,,False,0.0,85.0,1.0,,7.8,consensus,ATC,,True,1,0,True,0.0,85.0,1.0,,
+MQ3585-20150105,WEATHER,ORD,CMH,,LARGE,True,298,323,298,361,False,0,flight_crew_duty,True,,,,,7.9,deterministic_fallback,FALLBACK,,False,1,2,False,,,,,
+OO5186-20150818,WEATHER,ATW,ORD,BOMBARDIER INC CL-600-2B19,LARGE,True,83,128,83,133,True,0,,False,0.0,83.0,2.0,,7.0,consensus,ATC,,True,1,0,True,0.0,83.0,2.0,84.0,118.0
+OO6467-20150816,WEATHER,IAH,ICT,,LARGE,True,87,100,87,102,True,0,,False,0.0,87.0,2.0,,9.9,consensus,ATC,,True,1,0,True,0.0,87.0,2.0,87.0,107.0
+MQ3557-20150617,WEATHER,LAW,DFW,,LARGE,True,29,214,29,220,True,0,,False,0.0,29.0,0.0,,7.1,consensus,ATC,,True,1,0,True,0.0,29.0,0.0,0.0,65.0
+DL526-20150526,WEATHER,ATL,TYS,AIRBUS A319-114,LARGE,True,0,187,0,171,False,0,,False,0.0,0.0,0.0,,9.3,consensus,ATC,,True,1,0,True,0.0,0.0,0.0,,
+DL1458-20150714,WEATHER,ATL,LEX,,LARGE,True,87,90,87,99,False,0,,False,0.0,87.0,0.0,,7.9,consensus,ATC,,True,1,0,True,0.0,87.0,0.0,,
+MQ3376-20150401,WEATHER,DFW,MSN,,LARGE,True,9,39,9,28,False,0,,False,0.0,9.0,0.0,,7.7,consensus,ATC,,True,1,0,True,0.0,9.0,0.0,,
+DL2054-20150609,WEATHER,ATL,MOB,,LARGE,True,157,174,157,164,False,0,,False,0.0,157.0,1.0,,7.9,consensus,ATC,,True,1,0,True,0.0,157.0,1.0,,
+WN4636-20150625,WEATHER,MCO,RIC,BOEING 737-7H4,LARGE,True,144,184,144,181,False,0,,False,0.0,144.0,1.0,,7.6,consensus,ATC,,True,1,0,True,0.0,144.0,1.0,,
+MQ3350-20151227,WEATHER,SGF,DFW,,LARGE,True,18,37,18,49,True,0,,False,0.0,18.0,1.0,,8.3,consensus,ATC,,True,1,0,True,0.0,18.0,1.0,15.0,48.0
+AA1611-20150227,WEATHER,DFW,SFO,,LARGE,True,28,72,28,102,False,0,,False,0.0,28.0,0.0,,9.2,consensus,ATC,,True,1,0,True,0.0,28.0,0.0,,
+MQ3201-20150110,WEATHER,ORD,BNA,,LARGE,True,0,45,0,54,False,0,,False,0.0,0.0,1.0,,9.7,consensus,ATC,,True,1,0,True,0.0,0.0,1.0,,
+OO6503-20150510,LATE_AIRCRAFT,SFO,EUG,,LARGE,True,0,82,0,66,False,0,,False,0.0,0.0,0.0,,7.3,consensus,ATC,,True,1,0,True,0.0,0.0,0.0,,
+OO6277-20150108,LATE_AIRCRAFT,ORD,FAR,BOMBARDIER INC CL-600-2B19,LARGE,True,0,33,0,49,False,0,,False,0.0,0.0,0.0,,9.1,consensus,ATC,,True,1,0,True,0.0,0.0,0.0,,
+B6702-20150718,LATE_AIRCRAFT,JFK,BUF,EMBRAER ERJ 190-100 IGW,LARGE,True,98,82,98,61,False,0,,False,0.0,98.0,0.0,,7.1,consensus,ATC,,True,1,0,True,0.0,98.0,0.0,,
+OO6349-20150816,LATE_AIRCRAFT,DEN,MSY,,LARGE,True,47,31,47,33,True,0,,False,0.0,47.0,1.0,,8.1,consensus,ATC,,True,1,0,True,0.0,47.0,1.0,47.0,31.0
+US814-20150410,LATE_AIRCRAFT,MSP,PHL,EMBRAER ERJ 190-100 IGW,LARGE,True,66,62,66,72,False,0,,False,0.0,66.0,0.0,,6.7,consensus,ATC,,True,1,0,True,0.0,66.0,0.0,,
+DL1936-20150202,LATE_AIRCRAFT,MSP,CLT,,LARGE,True,382,378,382,347,False,0,flight_crew_duty,True,,,,,16.4,deterministic_fallback,FALLBACK,PILOT,False,2,4,False,,,,,
+MQ3252-20150907,LATE_AIRCRAFT,LRD,DFW,,LARGE,True,87,85,87,82,True,0,,False,0.0,87.0,1.0,,8.1,consensus,ATC,,True,1,0,True,0.0,87.0,1.0,89.0,99.0
+WN1614-20150125,LATE_AIRCRAFT,SAN,LAS,BOEING 737-7H4,LARGE,True,39,25,39,22,False,0,,False,0.0,39.0,1.0,,6.2,consensus,ATC,,True,1,0,True,0.0,39.0,1.0,,
+WN1335-20150730,LATE_AIRCRAFT,SLC,LAX,BOEING 737-3Q8,LARGE,True,36,71,36,71,True,0,,False,0.0,36.0,1.0,,8.3,consensus,ATC,,True,1,0,True,0.0,36.0,1.0,51.0,75.0
+US890-20150516,LATE_AIRCRAFT,LGA,CLT,AIRBUS A321-231,LARGE,True,49,35,49,128,False,0,,False,0.0,49.0,1.0,,8.0,consensus,ATC,,True,1,0,True,0.0,49.0,1.0,,
+MQ2925-20150424,LATE_AIRCRAFT,SHV,DFW,,LARGE,True,89,79,89,77,True,0,,False,0.0,89.0,1.0,,7.1,consensus,ATC,,True,1,0,True,0.0,89.0,1.0,0.0,38.0
+MQ3140-20150909,LATE_AIRCRAFT,GJT,DFW,,LARGE,True,38,30,38,31,False,0,,False,0.0,38.0,1.0,,7.0,consensus,ATC,,True,1,0,True,0.0,38.0,1.0,,
+EV4333-20150520,LATE_AIRCRAFT,IAH,PIA,,LARGE,True,91,94,91,78,False,0,,False,0.0,91.0,1.0,,6.5,consensus,ATC,,True,1,0,True,0.0,91.0,1.0,,
+OO6251-20150405,LATE_AIRCRAFT,TUS,DEN,BOMBARDIER INC CL-600-2B19,LARGE,True,84,79,84,57,False,0,,False,0.0,84.0,0.0,,6.7,consensus,ATC,,True,1,0,True,0.0,84.0,0.0,,
+WN1767-20150701,LATE_AIRCRAFT,HOU,MSY,,LARGE,True,85,104,85,110,False,0,,False,0.0,85.0,1.0,,7.3,consensus,ATC,,True,1,0,True,0.0,85.0,1.0,,
+WN290-20150517,LATE_AIRCRAFT,SNA,SMF,,LARGE,True,36,40,36,32,True,0,,False,0.0,36.0,1.0,,7.3,consensus,ATC,,True,1,0,True,0.0,36.0,1.0,36.0,29.0
+DL1495-20150729,LATE_AIRCRAFT,DTW,BDL,MCDONNELL DOUGLAS AIRCRAFT CO MD-88,LARGE,True,122,113,122,112,False,0,,False,0.0,122.0,0.0,,7.8,consensus,ATC,,True,1,0,True,0.0,122.0,0.0,,
+UA1118-20150825,LATE_AIRCRAFT,SFO,LAS,BOEING 737-924ER,LARGE,True,43,42,43,29,False,0,,False,0.0,43.0,0.0,,8.1,consensus,ATC,,True,1,0,True,0.0,43.0,0.0,,
+OO2747-20150419,LATE_AIRCRAFT,PHX,TUS,CANADAIR CL-600-2B19,LARGE,True,37,47,37,37,False,0,,False,0.0,37.0,0.0,,8.1,consensus,ATC,,True,1,0,True,0.0,37.0,0.0,,
+UA12-20150725,LATE_AIRCRAFT,ORD,LAX,,LARGE,True,80,82,80,72,False,0,,False,0.0,80.0,1.0,,8.1,consensus,ATC,,True,1,0,True,0.0,80.0,1.0,,
+DL440-20150718,LATE_AIRCRAFT,JFK,BOS,,LARGE,True,83,99,83,109,True,0,,False,0.0,83.0,1.0,,7.0,consensus,ATC,,True,1,0,True,0.0,83.0,1.0,74.0,107.0
+B62183-20151226,LATE_AIRCRAFT,JFK,MCO,AIRBUS A320-232,LARGE,True,64,91,64,78,True,0,,False,0.0,64.0,2.0,,7.5,consensus,ATC,,True,1,0,True,0.0,64.0,2.0,36.0,78.0
+MQ3186-20150616,LATE_AIRCRAFT,DFW,GRI,,LARGE,True,0,44,0,27,False,0,,False,0.0,0.0,0.0,,7.2,consensus,ATC,,True,1,0,True,0.0,0.0,0.0,,
+WN4230-20150926,LATE_AIRCRAFT,LAS,OAK,,LARGE,True,55,49,55,42,False,0,,False,0.0,55.0,0.0,,7.5,consensus,ATC,,True,1,0,True,0.0,55.0,0.0,,
+UA1744-20150521,LATE_AIRCRAFT,IAH,SEA,BOEING 737-924,LARGE,True,145,178,145,153,False,0,,False,0.0,145.0,1.0,,8.4,consensus,ATC,,True,1,0,True,0.0,145.0,1.0,,
