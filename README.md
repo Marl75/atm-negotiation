@@ -13,6 +13,19 @@ challenge workbook decide what is legal**; a solver decides when the agents disa
 supervisor approves. See [`SUBMISSION.md`](SUBMISSION.md) for the full description and [`results/`](results/) for the
 evidence.
 
+## See it in your browser
+
+| | |
+|---|---|
+| ✈️ **[Same flight, two evenings](https://marl75.github.io/atm-negotiation/pitch/two-evenings.html)** | Animated replay: phone tree vs agents on a real late flight, a "try to break it" rule sandbox, limits, and a Changi what-if |
+| 🎞️ **[Pitch deck](https://marl75.github.io/atm-negotiation/pitch/deck/)** | 9 slides (← → to move, N for speaker notes) |
+| 🔎 **[Negotiation viewer](https://marl75.github.io/atm-negotiation/viewer/)** | Every turn, check and rule source of the recorded demo flights · [scorecard](https://marl75.github.io/atm-negotiation/viewer/scorecard.html) |
+| 🗓️ **[Monday morning at DFW](https://marl75.github.io/atm-negotiation/pitch/monday-morning.html)** | What adoption would look like for each team |
+| 📐 **[Workbook deviations](https://marl75.github.io/atm-negotiation/pitch/workbook-deviations.html)** | The 7 places where I depart from the official constraints workbook, and why |
+| 🎤 **[Pitch script](https://marl75.github.io/atm-negotiation/pitch/pitch.html)** | The spoken 2:45 script |
+
+Sources are in [`pitch/`](pitch/) and [`viewer/`](viewer/); the deck is rebuilt with `python3 pitch/deck/build.py`.
+
 | | Result |
 |---|---|
 | Uncoordinated plans breaking a hard rule (rules-only audit, 10,000 flights) | **5.1 %** [4.7–5.6]; 2.6 % have no legal plan |

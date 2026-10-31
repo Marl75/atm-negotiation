@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ATM Negotiation — Airbus challenge #2</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;background:#0b1013;overflow:hidden}
+#stage{position:absolute;left:50%;top:50%;width:1920px;height:1080px;transform-origin:center}
+#stage>section{position:absolute;inset:0;width:1920px;height:1080px;display:none}
+#stage>section.on{display:revert}
+#stage>section:not(.on){display:none!important}
+table{border-collapse:collapse;width:100%} th,td{text-align:left;padding:18px 20px;border-bottom:1px solid #2C3A44}
+aside{display:none}
+#notes{position:fixed;left:0;right:0;bottom:0;max-height:40vh;overflow:auto;background:#000c;color:#eee;
+  font:16px/1.5 system-ui,sans-serif;padding:16px 24px;white-space:pre-wrap;display:none}
+#hud{position:fixed;right:12px;bottom:10px;font:12px system-ui,sans-serif;color:#9aa9b3;opacity:.7}
+</style></head><body>
+<div id="stage">
+<section id="cover" data-transition="fade" style="background:radial-gradient(ellipse at 85% 20%, #16303D 0%, #10171C 60%);color:#E3EAEE;font-family:'IBM Plex Sans Condensed', Arial, sans-serif;padding:128px 128px 160px;display:grid;grid-template-columns:860px 1fr;gap:96px;align-items:center">
+<div style="display:flex;flex-direction:column;gap:40px">
+<p style="font-family:'IBM Plex Mono', 'Courier New', monospace;font-size:24px;letter-spacing:3px;text-transform:uppercase;color:#9AA9B3">Autonomous SG 2026 · Airbus · Challenge #2</p>
+<h1 style="font-size:120px;font-weight:700;line-height:1;color:#E3EAEE">Air Traffic<br>Management<br><span style="color:#6CC0DC">Negotiation</span></h1>
+<p style="font-size:44px;line-height:1.3;color:#9AA9B3">Late flights, solved before take-off. <span style="color:#E3EAEE">Three AI agents agree on a safe plan; a supervisor approves.</span></p>
+</div>
+<div style="display:flex;flex-direction:column;gap:24px">
+<div style="display:flex;flex-direction:column;gap:8px;background:#1A2630;border:1px solid #2C3A44;border-left:12px solid #6CC0DC;padding:28px 32px">
+<p style="font-family:'IBM Plex Mono', 'Courier New', monospace;font-size:28px;font-weight:600;color:#6CC0DC">ATC</p>
+<p style="font-size:32px">Slot on runway R2: accept</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:8px;background:#1A2630;border:1px solid #2C3A44;border-left:12px solid #E3C267;padding:28px 32px">
+<p style="font-family:'IBM Plex Mono', 'Courier New', monospace;font-size:28px;font-weight:600;color:#E3C267">PILOT</p>
+<p style="font-size:32px">Holding 0 min: accept</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:8px;background:#1A2630;border:1px solid #2C3A44;border-left:12px solid #79C795;padding:28px 32px">
+<p style="font-family:'IBM Plex Mono', 'Courier New', monospace;font-size:28px;font-weight:600;color:#79C795">GROUND</p>
+<p style="font-size:32px">Gate G10 busy → G12</p>
+</div>
+</div>
+<p style="position:absolute;left:128px;bottom:64px;width:1664px;font-family:'IBM Plex Mono', 'Courier New', monospace;font-size:24px;color:#9AA9B3">Marlène Menoire · solo · github.com/Marl75/atm-negotiation</p>
+<aside>Open on this slide while the jury settles. Do not read it; go straight to the problem.</aside>
+</section>
+
+<section id="problem" data-transition="fade" style="background:#EEF2F4;color:#17222B;font-family:'IBM Plex Sans Condensed', Arial, sans-serif;padding:128px 128px 160px;display:flex;flex-direction:column;gap:56px">
+<div style="display:flex;flex-direction:column;gap:16px">
+<p style="font-family:'IBM Plex Mono', 'Courier New', monospace;font-size:24px;letter-spacing:3px;text-transform:uppercase;color:#1D6F8C">The problem</p>
+<h2 style="font-size:72px;font-weight:700;line-height:1.1">A late flight turns into three phone calls</h2>
+</div>
+<div style="display:grid;grid-template-columns:780px 1fr;gap:96px;align-items:center">
+<div style="display:flex;flex-direction:column;gap:20px">
+<p style="font-size:180px;font-weight:700;line-height:1;color:#A2551B">≈18,000</p>
+<p style="font-size:36px;line-height:1.35;color:#17222B">flights in one year of challenge data had a plan that broke a rule: a crew over its hours, a gate still occupied, or fuel too low. <span style="color:#55636E">(estimate, under the workbook’s limits)</span></p>
+</div>
+<div style="display:flex;flex-direction:column;gap:20px">
+<div style="background:#F7FBF6;border:1px solid #C9D3DA;border-left:10px solid #1D6F8C;padding:24px 32px"><p style="font-size:32px"><b>Tower:</b> “Can I land it?”</p></div>
+<div style="background:#F7FBF6;border:1px solid #C9D3DA;border-left:10px solid #B08A1F;padding:24px 32px"><p style="font-size:32px"><b>Airline:</b> “Do crew hours and fuel allow it?”</p></div>
+<div style="background:#F7FBF6;border:1px solid #C9D3DA;border-left:10px solid #2F7A4B;padding:24px 32px"><p style="font-size:32px"><b>Ramp:</b> “Is a gate free?”</p></div>
+<p style="font-size:28px;color:#55636E">Each team checks its own question. Nobody checks all three before landing.</p>
+</div>
+</div>
+<p style="position:absolute;left:128px;bottom:64px;width:1664px;font-family:'IBM Plex Mono', 'Courier New', monospace;font-size:24px;color:#55636E">5.1% of the 358,774 delayed flights in the 2015 US data provided (rules-only audit of 10,000 flights, 95% range 4.7–5.6%)</p>
+<aside>The approach supervisor at Dallas has to get three teams to agree when a flight runs late: the tower, the airline and the ramp. Today that happens by phone, and each team only checks its own rules. In one year of the challenge data, I estimate about eighteen thousand flights had a plan that broke a rule. (0:00–0:25)</aside>
+</section>
+
+<section id="change" data-transition="fade" style="background:#10171C;color:#E3EAEE;font-family:'IBM Plex Sans Condensed', Arial, sans-serif;padding:128px;display:flex;flex-direction:column;gap:56px">
+<div style="display:flex;flex-direction:column;gap:16px">
+<p style="font-family:'IBM Plex Mono', 'Courier New', monospace;font-size:24px;letter-spacing:3px;text-transform:uppercase;color:#6CC0DC">What changes</p>
+<h2 style="font-size:72px;font-weight:700;line-height:1.1">Problems solved before take-off, not found on the taxiway</h2>
+</div>
+<table style="font-size:30px;color:#E3EAEE">
+<tr><th style="width:26%;color:#9AA9B3"></th><th style="width:37%;color:#E3A067">Today</th><th style="width:37%;color:#79C795">With the tool</th></tr>
+<tr><td style="color:#9AA9B3">When a conflict is found</td><td>Often at landing, on the taxiway</td><td>Before take-off, hours ahead</td></tr>
+<tr><td style="color:#9AA9B3">How teams agree</td><td>Phone calls, one by one</td><td>Three AI agents, in writing, in seconds</td></tr>
+<tr><td style="color:#9AA9B3">Who checks the rules</td><td>Each team, its own rules only</td><td>Fixed rules, all three teams, every time</td></tr>
+<tr><td style="color:#9AA9B3">Who decides</td><td>Whoever is on the phone last</td><td>The supervisor, with a written reason</td></tr>
+<tr><td style="color:#9AA9B3">What is left afterwards</td><td>Nothing written</td><td>A full record of every turn</td></tr>
+</table>
+<aside>With my tool, the problem is found before take-off. Three AI agents, one per team, agree in writing in seconds, fixed rules check every plan, and the supervisor decides with a written reason. (0:25–0:40)</aside>
+</section>
+
+<section id="how" data-transition="fade" style="background:#EEF2F4;color:#17222B;font-family:'IBM Plex Sans Condensed', Arial, sans-serif;padding:128px 128px 160px;display:flex;flex-direction:column;gap:48px">
+<div style="display:flex;flex-direction:column;gap:16px">
+<p style="font-family:'IBM Plex Mono', 'Courier New', monospace;font-size:24px;letter-spacing:3px;text-transform:uppercase;color:#1D6F8C">How it works</p>
+<h2 style="font-size:72px;font-weight:700;line-height:1.1">The AI negotiates; code checks the rules; a human decides</h2>
+</div>
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:24px">
+<div style="display:flex;flex-direction:column;gap:12px;background:#F7FBF6;border:1px solid #C9D3DA;border-top:8px solid #55636E;padding:28px">
+<p style="font-family:'IBM Plex Mono', 'Courier New', monospace;font-size:24px;color:#55636E">1 · CODE</p>
+<h3 style="font-size:36px;font-weight:700;line-height:1.15">Build the picture</h3>
+<p style="font-size:26px;line-height:1.35;color:#3D4A55">From one late flight: arrival queue, runways, gates, crew hours, fuel, from the challenge workbook. No AI.</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:12px;background:#F7FBF6;border:1px solid #C9D3DA;border-top:8px solid #1D6F8C;padding:28px">
+<p style="font-family:'IBM Plex Mono', 'Courier New', monospace;font-size:24px;color:#1D6F8C">2 · AI</p>
+<h3 style="font-size:36px;font-weight:700;line-height:1.15">Negotiate</h3>
+<p style="font-size:26px;line-height:1.35;color:#3D4A55">Each round, three separate Claude calls: Tower (ATC), Airline (Pilot), Ramp (Ground). Each sees only its own team’s data and answers in a fixed format: accept or reject, which rule, a counter-proposal.</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:12px;background:#F7FBF6;border:1px solid #C9D3DA;border-top:8px solid #55636E;padding:28px">
+<p style="font-family:'IBM Plex Mono', 'Courier New', monospace;font-size:24px;color:#55636E">3 · CODE</p>
+<h3 style="font-size:36px;font-weight:700;line-height:1.15">Check and choose</h3>
+<p style="font-size:26px;line-height:1.35;color:#3D4A55">Fixed rules check every proposal. Code keeps the safest, then cheapest. Three rounds at most; then a solver decides and writes down why.</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:12px;background:#F7FBF6;border:1px solid #C9D3DA;border-top:8px solid #2F7A4B;padding:28px">
+<p style="font-family:'IBM Plex Mono', 'Courier New', monospace;font-size:24px;color:#2F7A4B">4 · HUMAN</p>
+<h3 style="font-size:36px;font-weight:700;line-height:1.15">Decide</h3>
+<p style="font-size:26px;line-height:1.35;color:#3D4A55">The supervisor sees the plan, every check and each team’s concerns, then approves or rejects. Everything is logged.</p>
+</div>
+</div>
+<p style="position:absolute;left:128px;bottom:64px;width:1664px;font-family:'IBM Plex Mono', 'Courier New', monospace;font-size:24px;color:#55636E">3 to 9 AI calls per flight · a few cents · about 10 seconds · the 10,000-flight audit and all tests run without AI</p>
+<aside>Plain code builds the picture of the flight. Three separate AI agents negotiate, each seeing only its own team’s data. Code checks every proposal against fixed rules and keeps the safest. After three rounds without agreement, a solver decides and says why. The supervisor has the last word. (0:40–1:00)</aside>
+</section>
+
+<section id="demo" data-transition="fade" style="background:#10171C;color:#E3EAEE;font-family:'IBM Plex Sans Condensed', Arial, sans-serif;padding:128px 128px 160px;display:flex;flex-direction:column;gap:48px">
+<div style="display:flex;flex-direction:column;gap:16px">
+<p style="font-family:'IBM Plex Mono', 'Courier New', monospace;font-size:24px;letter-spacing:3px;text-transform:uppercase;color:#6CC0DC">A real flight · Envoy 3439, Mobile → Dallas, 45 min late</p>
+<h2 style="font-size:72px;font-weight:700;line-height:1.1">The gate problem is solved two hours before landing</h2>
+</div>
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:32px">
+<div style="display:flex;flex-direction:column;gap:12px;background:#1A2630;border:1px solid #2C3A44;border-top:8px solid #E3A067;padding:32px">
+<p style="font-family:'IBM Plex Mono', 'Courier New', monospace;font-size:24px;color:#E3A067">ROUND 1</p>
+<p style="font-size:32px;line-height:1.35">Ramp agent: “Gate G10 will still be busy when you land.”</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:12px;background:#1A2630;border:1px solid #2C3A44;border-top:8px solid #6CC0DC;padding:32px">
+<p style="font-family:'IBM Plex Mono', 'Courier New', monospace;font-size:24px;color:#6CC0DC">ROUND 2</p>
+<p style="font-size:32px;line-height:1.35">It moves the flight to G12. Tower and airline agree; every rule passes.</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:12px;background:#1A2630;border:1px solid #2C3A44;border-top:8px solid #79C795;padding:32px">
+<p style="font-family:'IBM Plex Mono', 'Courier New', monospace;font-size:24px;color:#79C795">RESULT</p>
+<p style="font-size:32px;line-height:1.35">The supervisor approves. About 34 minutes of waiting for a gate, avoided.</p>
+</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:12px;background:#172129;border:1px solid #2C3A44;padding:28px 36px">
+<p style="font-family:'IBM Plex Mono', 'Courier New', monospace;font-size:24px;color:#9AA9B3">Try to force a bad plan: 40 min circling in the air, too close behind another aircraft</p>
+<p style="font-family:'IBM Plex Mono', 'Courier New', monospace;font-size:28px;color:#E3EAEE">→ <span style="color:#E3A067">refused instantly: spacing and fuel rules, with the reason</span></p>
+</div>
+<p style="position:absolute;left:128px;bottom:64px;width:1664px;font-family:'IBM Plex Mono', 'Courier New', monospace;font-size:24px;color:#9AA9B3">Live: replay of the recorded negotiation · every check shows its rule and source</p>
+<aside>Switch to the viewer (MQ3439). A real flight: Envoy 3439 to Dallas, 45 minutes late. The ramp agent sees the gate will still be busy when it lands, and moves it to another gate. The others agree, every rule passes, the supervisor approves: about 34 minutes of waiting for a gate, avoided. And a bad plan forced by hand is refused instantly. (1:00–1:35) Backup if the live demo fails: stay on this slide.</aside>
+</section>
+
+<section id="fails" data-transition="fade" style="background:#EEF2F4;color:#17222B;font-family:'IBM Plex Sans Condensed', Arial, sans-serif;padding:128px 128px 160px;display:flex;flex-direction:column;gap:56px">
+<div style="display:flex;flex-direction:column;gap:16px">
+<p style="font-family:'IBM Plex Mono', 'Courier New', monospace;font-size:24px;letter-spacing:3px;text-transform:uppercase;color:#A2551B">When there is no good answer</p>
+<h2 style="font-size:72px;font-weight:700;line-height:1.1">It says so early, instead of forcing a plan</h2>
+</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:48px">
+<div style="display:flex;flex-direction:column;gap:20px;background:#F7FBF6;border:1px solid #C9D3DA;border-left:12px solid #A2551B;padding:40px">
+<h3 style="font-size:44px;font-weight:700">Southwest 1347</h3>
+<p style="font-size:32px;line-height:1.35;color:#3D4A55">Whatever the plan, the crew would end 10 minutes past its 13-hour limit. The airline agent refuses every option.</p>
+<p style="font-family:'IBM Plex Mono', 'Courier New', monospace;font-size:24px;line-height:1.4;color:#A2551B">“No legal plan: sent to the supervisor”</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:20px;background:#F7FBF6;border:1px solid #C9D3DA;border-left:12px solid #1D6F8C;padding:40px">
+<h3 style="font-size:44px;font-weight:700">Why it matters</h3>
+<p style="font-size:32px;line-height:1.35;color:#3D4A55">The airline learns before take-off that it needs a fresh crew, not at the gate with passengers waiting.</p>
+<p style="font-size:32px;line-height:1.35"><b>≈9,000 flights</b> in one year of challenge data had no legal plan at all <span style="color:#55636E">(estimate)</span>.</p>
+</div>
+</div>
+<p style="position:absolute;left:128px;bottom:64px;width:1664px;font-family:'IBM Plex Mono', 'Courier New', monospace;font-size:24px;color:#55636E">2.6% of the 358,774 delayed flights in the 2015 data provided (rules-only audit)</p>
+<aside>Sometimes there is no good answer: here the crew would go past its 13-hour limit whatever the plan. The tool does not force anything. It tells the supervisor why, before take-off, so the airline can find a fresh crew. I estimate about nine thousand such flights in the data. (1:35–1:55) If asked how I know my results are honest: a DOT column filled in after the flight explained my “perfect” predictions (21% exact on those rows vs 3% on clean rows); I isolated it and only report accuracy on clean rows.</aside>
+</section>
+
+<section id="numbers" data-transition="fade" style="background:#10171C;color:#E3EAEE;font-family:'IBM Plex Sans Condensed', Arial, sans-serif;padding:128px 128px 160px;display:flex;flex-direction:column;gap:48px">
+<div style="display:flex;flex-direction:column;gap:16px">
+<p style="font-family:'IBM Plex Mono', 'Courier New', monospace;font-size:24px;letter-spacing:3px;text-transform:uppercase;color:#6CC0DC">What it’s worth</p>
+<h2 style="font-size:72px;font-weight:700;line-height:1.1">Value for each team, for a few cents a flight</h2>
+</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:32px">
+<div style="display:flex;flex-direction:column;gap:10px;background:#1A2630;border:1px solid #2C3A44;border-left:12px solid #79C795;padding:28px 32px">
+<h3 style="font-size:36px;font-weight:700">Supervisor</h3>
+<p style="font-size:28px;line-height:1.35;color:#BFCBD3">One checked plan with a reason, instead of a round of phone calls.</p>
+<p style="font-family:'IBM Plex Mono', 'Courier New', monospace;font-size:24px;color:#79C795">Agreement in 1–2 rounds, about 10 seconds</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:10px;background:#1A2630;border:1px solid #2C3A44;border-left:12px solid #E3C267;padding:28px 32px">
+<h3 style="font-size:36px;font-weight:700">Airline</h3>
+<p style="font-size:28px;line-height:1.35;color:#BFCBD3">No plan ever breaks crew-hour or fuel limits; crew problems flagged before take-off.</p>
+<p style="font-family:'IBM Plex Mono', 'Courier New', monospace;font-size:24px;color:#E3C267">0 unsafe plans kept, out of 200</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:10px;background:#1A2630;border:1px solid #2C3A44;border-left:12px solid #6CC0DC;padding:28px 32px">
+<h3 style="font-size:36px;font-weight:700">Ramp and gates</h3>
+<p style="font-size:28px;line-height:1.35;color:#BFCBD3">Gate conflicts fixed hours ahead; it predicts when the aircraft will really be ready, off by about 15 minutes on average.</p>
+<p style="font-family:'IBM Plex Mono', 'Courier New', monospace;font-size:24px;color:#6CC0DC">Ramp agent fixes 29% of busy-day flights</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:10px;background:#1A2630;border:1px solid #2C3A44;border-left:12px solid #E3A067;padding:28px 32px">
+<h3 style="font-size:36px;font-weight:700">Passengers and fuel</h3>
+<p style="font-size:28px;line-height:1.35;color:#BFCBD3">They wait at the departure gate, not circling in the air on arrival.</p>
+<p style="font-family:'IBM Plex Mono', 'Courier New', monospace;font-size:24px;color:#E3A067">0 min of airborne holding in agreed plans</p>
+</div>
+</div>
+<p style="position:absolute;left:128px;bottom:64px;width:1664px;font-family:'IBM Plex Mono', 'Courier New', monospace;font-size:24px;color:#9AA9B3">On a normal day nothing changes: 9 flights in 10 keep their plan · 4–9 cents and 8–14 seconds per flight · 255 flights tested</p>
+<aside>So what is it worth? The supervisor gets one checked plan instead of a round of calls. The airline never gets a plan that breaks crew or fuel limits. The ramp fixes gate conflicts hours ahead. Passengers wait at the gate, not circling in the air. On a normal day nothing changes, for a few cents per flight. (1:55–2:20)
+
+IF ASKED:
+- 0 out of 200 = every flight that had a legal option got a safe plan; the other 55 of the 255 had none and went to the supervisor.
+- No agent ever accepted a plan breaking its own rules (450+ flights checked).
+- 1–2 rounds = average rounds before the three agents agree: 1.1 on ordinary flights, 1.7 under stress; the brief allows 3.
+- 47% of busy-day flights had no legal plan, mostly crew over 13 h.
+- “Off by about 15 minutes on average” = average error of 14.4 min on when the aircraft is ready to leave, vs 16.7 min with a fixed 35-min turnaround; tested on months the model never saw. Not a comparison with today’s airline tools.</aside>
+</section>
+
+<section id="deviations" data-transition="fade" style="background:#F7FBF6;color:#17222B;font-family:'IBM Plex Sans Condensed', Arial, sans-serif;padding:128px 128px 160px;display:flex;flex-direction:column;gap:48px">
+<div style="display:flex;flex-direction:column;gap:16px">
+<p style="font-family:'IBM Plex Mono', 'Courier New', monospace;font-size:24px;letter-spacing:3px;text-transform:uppercase;color:#1D6F8C">Rules of play: “any limit you change must be stated”</p>
+<h2 style="font-size:72px;font-weight:700;line-height:1.1">Where I depart from the challenge workbook</h2>
+</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:28px 64px">
+<p style="font-size:28px;line-height:1.35"><b>1 · Turnaround forecast per airline.</b> Fit Jan–Jun, tested Jul–Dec; never below the workbook minimum, which stays the limit.</p>
+<p style="font-size:28px;line-height:1.35"><b>2 · FAA B757 wake category kept.</b> All workbook wake pairs are identical, checked by a test.</p>
+<p style="font-size:28px;line-height:1.35"><b>3 · Airport noise curfews added.</b> SNA and LGB, cited; not in the workbook.</p>
+<p style="font-size:28px;line-height:1.35"><b>4 · Fuel read conservatively.</b> 45 min on arrival is total holding fuel: 15 min usable above the 30-min reserve.</p>
+<p style="font-size:28px;line-height:1.35"><b>5 · Half of runway ops are arrivals.</b> Spacing = workbook ops/hour ÷ 2 per runway, or wake separation if larger.</p>
+<p style="font-size:28px;line-height:1.35"><b>6 · Ground shifts at 06:00, 14:00, 22:00.</b> 8-hour length and 1.5× overtime from the workbook.</p>
+<p style="font-size:28px;line-height:1.35"><b>7 · Airline gates by traffic share.</b> Airport gates × the airline’s share of arrivals there; spare gates as given.</p>
+</div>
+<p style="position:absolute;left:128px;bottom:64px;width:1664px;font-family:'IBM Plex Mono', 'Courier New', monospace;font-size:24px;color:#55636E">Everything else comes from challenge2_operational_constraints.xlsx: runways, ops/hour, gates, turnaround, wake, fuel, crew, gate notice</p>
+<aside>(2:20–2:25) Point at the list: The limits come from the challenge workbook; my few changes are listed here. Do not read the list.</aside>
+</section>
+
+<section id="monday" data-transition="fade" style="background:#1D6F8C;color:#F2F7F9;font-family:'IBM Plex Sans Condensed', Arial, sans-serif;padding:128px 128px 160px;display:flex;flex-direction:column;justify-content:space-between;gap:56px">
+<div style="display:flex;flex-direction:column;gap:24px">
+<p style="font-family:'IBM Plex Mono', 'Courier New', monospace;font-size:24px;letter-spacing:3px;text-transform:uppercase;color:#CFE6EF">Monday morning at DFW</p>
+<h2 style="font-size:96px;font-weight:700;line-height:1.05">A checked plan and a reason, instead of a phone tree</h2>
+</div>
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:40px">
+<div style="display:flex;flex-direction:column;gap:12px;border-top:4px solid #CFE6EF;padding:24px 0 0 0">
+<h3 style="font-size:36px;font-weight:700">Shadow mode first</h3>
+<p style="font-size:28px;line-height:1.35;color:#DCECF2">Run on every disrupted arrival, show nothing, compare with what was decided.</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:12px;border-top:4px solid #CFE6EF;padding:24px 0 0 0">
+<h3 style="font-size:36px;font-weight:700">Real data next</h3>
+<p style="font-size:28px;line-height:1.35;color:#DCECF2">Live gate plan, crew pairings and declared arrival rates from one airline.</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:12px;border-top:4px solid #CFE6EF;padding:24px 0 0 0">
+<h3 style="font-size:36px;font-weight:700">Human keeps the call</h3>
+<p style="font-size:28px;line-height:1.35;color:#DCECF2">Approve-to-apply for gates and ground holds only; crew stays manual.</p>
+</div>
+</div>
+<p style="font-size:32px;line-height:1.35;color:#F2F7F9"><b>Next idea:</b> plug in a weather forecast (hello, Challenge #5), so the agents see the storm coming before the passengers do.</p>
+<p style="font-size:44px;font-weight:500">Thank you.</p>
+<p style="position:absolute;left:128px;bottom:64px;width:1664px;font-family:'IBM Plex Mono', 'Courier New', monospace;font-size:24px;color:#DCECF2">github.com/Marl75/atm-negotiation · airport limits are the workbook’s synthetic values</p>
+<aside>So on Monday morning, the supervisor gets a checked plan and a reason instead of phone calls. Next step: shadow mode with one airline’s real data. And one day, a weather forecast, so the agents see the storm coming before the passengers do. Thank you. (2:25–2:45) If asked why weather: on weather flights my predicted slot is often far off, because nothing known before departure forecasts the storm; that is exactly Challenge #5.</aside>
+</section>
+
+</div>
+<div id="notes"></div>
+<div id="hud"></div>
+<script>
+const S=[...document.querySelectorAll('#stage>section')],stage=document.getElementById('stage'),
+notes=document.getElementById('notes'),hud=document.getElementById('hud');
+let i=Math.max(0,S.findIndex(s=>'#'+s.id===location.hash));
+function fit(){const k=Math.min(innerWidth/1920,innerHeight/1080);stage.style.transform=`translate(-50%,-50%) scale(${k})`;}
+function show(n){i=Math.max(0,Math.min(S.length-1,n));S.forEach((s,j)=>s.classList.toggle('on',j===i));
+  const a=S[i].querySelector('aside');notes.textContent=a?a.textContent:'';
+  hud.textContent=`${i+1} / ${S.length} · ← → · N notes · F full screen`;history.replaceState(null,'','#'+S[i].id);}
+addEventListener('keydown',e=>{
+  if(['ArrowRight','PageDown',' '].includes(e.key))show(i+1);
+  else if(['ArrowLeft','PageUp'].includes(e.key))show(i-1);
+  else if(e.key==='n'||e.key==='N')notes.style.display=notes.style.display==='block'?'none':'block';
+  else if(e.key==='f'||e.key==='F')document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen();
+});
+addEventListener('click',e=>{if(e.target.closest('#notes'))return;show(e.clientX>innerWidth/2?i+1:i-1);});
+addEventListener('resize',fit);fit();show(i);
+</script></body></html>

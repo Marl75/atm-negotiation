@@ -1,0 +1,30 @@
+<section id="how" data-transition="fade" style="background:#EEF2F4;color:#17222B;font-family:'IBM Plex Sans Condensed', Arial, sans-serif;padding:128px 128px 160px;display:flex;flex-direction:column;gap:48px">
+<div style="display:flex;flex-direction:column;gap:16px">
+<p style="font-family:'IBM Plex Mono', 'Courier New', monospace;font-size:24px;letter-spacing:3px;text-transform:uppercase;color:#1D6F8C">How it works</p>
+<h2 style="font-size:72px;font-weight:700;line-height:1.1">The AI negotiates; code checks the rules; a human decides</h2>
+</div>
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:24px">
+<div style="display:flex;flex-direction:column;gap:12px;background:#F7FBF6;border:1px solid #C9D3DA;border-top:8px solid #55636E;padding:28px">
+<p style="font-family:'IBM Plex Mono', 'Courier New', monospace;font-size:24px;color:#55636E">1 · CODE</p>
+<h3 style="font-size:36px;font-weight:700;line-height:1.15">Build the picture</h3>
+<p style="font-size:26px;line-height:1.35;color:#3D4A55">From one late flight: arrival queue, runways, gates, crew hours, fuel, from the challenge workbook. No AI.</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:12px;background:#F7FBF6;border:1px solid #C9D3DA;border-top:8px solid #1D6F8C;padding:28px">
+<p style="font-family:'IBM Plex Mono', 'Courier New', monospace;font-size:24px;color:#1D6F8C">2 · AI</p>
+<h3 style="font-size:36px;font-weight:700;line-height:1.15">Negotiate</h3>
+<p style="font-size:26px;line-height:1.35;color:#3D4A55">Each round, three separate Claude calls: Tower (ATC), Airline (Pilot), Ramp (Ground). Each sees only its own team’s data and answers in a fixed format: accept or reject, which rule, a counter-proposal.</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:12px;background:#F7FBF6;border:1px solid #C9D3DA;border-top:8px solid #55636E;padding:28px">
+<p style="font-family:'IBM Plex Mono', 'Courier New', monospace;font-size:24px;color:#55636E">3 · CODE</p>
+<h3 style="font-size:36px;font-weight:700;line-height:1.15">Check and choose</h3>
+<p style="font-size:26px;line-height:1.35;color:#3D4A55">Fixed rules check every proposal. Code keeps the safest, then cheapest. Three rounds at most; then a solver decides and writes down why.</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:12px;background:#F7FBF6;border:1px solid #C9D3DA;border-top:8px solid #2F7A4B;padding:28px">
+<p style="font-family:'IBM Plex Mono', 'Courier New', monospace;font-size:24px;color:#2F7A4B">4 · HUMAN</p>
+<h3 style="font-size:36px;font-weight:700;line-height:1.15">Decide</h3>
+<p style="font-size:26px;line-height:1.35;color:#3D4A55">The supervisor sees the plan, every check and each team’s concerns, then approves or rejects. Everything is logged.</p>
+</div>
+</div>
+<p style="position:absolute;left:128px;bottom:64px;width:1664px;font-family:'IBM Plex Mono', 'Courier New', monospace;font-size:24px;color:#55636E">3 to 9 AI calls per flight · a few cents · about 10 seconds · the 10,000-flight audit and all tests run without AI</p>
+<aside>Plain code builds the picture of the flight. Three separate AI agents negotiate, each seeing only its own team’s data. Code checks every proposal against fixed rules and keeps the safest. After three rounds without agreement, a solver decides and says why. The supervisor has the last word. (0:40–1:00)</aside>
+</section>

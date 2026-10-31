@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ATM Negotiation</title>
+<meta name="description" content="Airbus challenge #2, Autonomous SG 2026: three AI agents negotiate a late flight; fixed rules check every plan; a supervisor decides.">
+<style>
+:root{--bg:#10171C;--card:#1A2630;--line:#2C3A44;--ink:#E3EAEE;--muted:#9AA9B3;--accent:#6CC0DC}
+@media (prefers-color-scheme: light){:root:not([data-theme="dark"]){--bg:#EEF2F4;--card:#F7FBF6;--line:#C9D3DA;--ink:#17222B;--muted:#55636E;--accent:#1D6F8C}}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:var(--ink);font:17px/1.5 system-ui,-apple-system,sans-serif;padding:48px 16px}
+main{max-width:880px;margin:0 auto}
+.k{font:600 13px ui-monospace,Menlo,monospace;letter-spacing:2px;text-transform:uppercase;color:var(--muted)}
+h1{font-size:clamp(32px,6vw,52px);line-height:1.05;margin:10px 0 14px}
+h1 span{color:var(--accent)}
+p.lead{color:var(--muted);max-width:640px}
+img{width:100%;border:1px solid var(--line);border-radius:6px;margin:28px 0}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px}
+a.c{display:block;background:var(--card);border:1px solid var(--line);border-left:6px solid var(--accent);padding:18px 20px;color:inherit;text-decoration:none;border-radius:4px}
+a.c:hover{border-color:var(--accent)}
+a.c b{display:block;font-size:19px;margin-bottom:4px}
+a.c small{color:var(--muted);font-size:15px}
+footer{margin-top:36px;color:var(--muted);font-size:14px}
+footer a{color:var(--accent)}
+</style></head><body><main>
+<p class="k">Autonomous SG 2026 · Airbus · Challenge #2</p>
+<h1>Air Traffic Management <span>Negotiation</span></h1>
+<p class="lead">Late flights, solved before take-off. Three AI agents (tower, airline, ramp) agree on a plan, fixed rules from the challenge workbook check it, and the supervisor decides.</p>
+<img src="pitch/cover.png" alt="Cover: ATC, Pilot and Ground agents agreeing on a plan">
+<div class="grid">
+<a class="c" href="pitch/two-evenings.html"><b>Same flight, two evenings →</b><small>Animated replay: phone tree vs agents, a rule sandbox to try and break it, limits, a Changi what-if.</small></a>
+<a class="c" href="pitch/deck/"><b>Pitch deck →</b><small>9 slides. ← → to move, N for speaker notes.</small></a>
+<a class="c" href="viewer/"><b>Negotiation viewer →</b><small>Every turn and every rule check of the recorded demo flights.</small></a>
+<a class="c" href="viewer/scorecard.html"><b>Scorecard →</b><small>Evaluation results over 255 flights.</small></a>
+<a class="c" href="pitch/monday-morning.html"><b>Monday morning at DFW →</b><small>What adoption would look like for each team.</small></a>
+<a class="c" href="pitch/workbook-deviations.html"><b>Workbook deviations →</b><small>The 7 limits I changed or added, and why.</small></a>
+</div>
+<footer>Hackathon research prototype by Marlène Menoire, built solo on 31 Oct 2026. Not an operational tool. Code and results: <a href="https://github.com/Marl75/atm-negotiation">github.com/Marl75/atm-negotiation</a></footer>
+</main></body></html>
