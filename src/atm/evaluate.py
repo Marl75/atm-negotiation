@@ -9,6 +9,7 @@ Baselines
 
 from __future__ import annotations
 
+import json
 import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
@@ -89,7 +90,9 @@ def _hard_fails(s, c, p: Proposal | None) -> list[str]:
     return [] if p is None else [r.constraint for r in check_all(s, c, p) if r.hard and not r.passed]
 
 
-def run_case(flights: pd.DataFrame, r: pd.Series, agents: list | None = None) -> dict:
+def run_case(flights: pd.DataFrame, r: pd.Series, agents: list | None = None,
+             outcome: Outcome | None = None) -> dict:
+    """`outcome`: an already-run negotiation (rebuilt from its log) instead of calling the agents again."""
     s, c = build_scenario(flights, r)
     leg = next_leg(flights, r)
     naive, fb = naive_initial(s, c), deterministic_resolution(s, c)
@@ -106,7 +109,7 @@ def run_case(flights: pd.DataFrame, r: pd.Series, agents: list | None = None) ->
                fallback_soft_fails=_soft_fails(s, c, fb))
     t0 = time.time()
     try:
-        out = negotiate(s, c, naive, agents)
+        out = outcome if outcome is not None else negotiate(s, c, naive, agents)
     except Exception as e:  # API error, refusal, schema failure: counted, not hidden
         return row | dict(error=f"{type(e).__name__}: {e}"[:200], latency_s=round(time.time() - t0, 1))
     p = out.final
@@ -142,10 +145,14 @@ def _by_source(ok: pd.DataFrame, metric) -> dict:
 
 
 def summarize(df: pd.DataFrame) -> dict:
-    ok = df[df["error"].isna()]
+    ok = df[df["error"].isna()].copy()
     if ok.empty:  # every flight errored or hit the budget cap
         return {"cases": len(df), "errors": int(df["error"].notna().sum()),
                 "error_kinds": df["error"].value_counts().to_dict()}
+    # error / budget-cap rows lack these columns: the mix turns them into objects, where ~ is integer NOT
+    for col in ("escalated", "consensus", "final_hard_ok", "known_delay_from_prev_leg"):
+        if col in ok:
+            ok[col] = ok[col].fillna(False).astype(bool)
     solved = ok[~ok["escalated"]]
     leg = ok.dropna(subset=["pred_next_dep_delay"]) if "pred_next_dep_delay" in ok else ok.iloc[0:0]
     err = (leg["pred_next_dep_delay"] - leg["real_next_dep_delay"]) if len(leg) else pd.Series(dtype=float)
@@ -213,10 +220,10 @@ def run_eval(flights: pd.DataFrame, n: int = 20, seed: int = 0, workers: int = 4
     with ThreadPoolExecutor(workers) as ex:
         results = list(ex.map(case, [r for _, r in rows.iterrows()]))
     df = pd.DataFrame(results)
-    summary = summarize(df) | {"llm_calls": llm.USAGE["calls"] - calls0, "cost_usd": round(spent(), 2)}
     out = EVAL_DIR / (datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + (f"_{tag}" if tag else ""))
     out.mkdir(parents=True, exist_ok=True)
-    df.to_csv(out / "results.csv", index=False)
+    df.to_csv(out / "results.csv", index=False)  # before summarizing: a summary bug must not lose paid results
+    summary = summarize(df) | {"llm_calls": llm.USAGE["calls"] - calls0, "cost_usd": round(spent(), 2)}
     (out / "summary.md").write_text(
         f"# Eval n={len(rows)} seed={seed} {tag}\n\n" + "\n".join(f"- **{k}**: {v}" for k, v in summary.items()) + "\n")
     return df, summary, out
@@ -253,3 +260,11 @@ def aggregate(dirs: list) -> str:
         lines.append(f"| {k} | " + " | ".join(fmt(c.get(k)) for c in cols) + f" | **{fmt(pooled.get(k))}** |")
     lines.append("| cost_usd | " + " | ".join(f"{c:.2f}" for c in costs) + f" | **{sum(costs):.2f}** |")
     return "\n".join(lines)
+
+
+def outcome_from_log(path) -> Outcome:
+    """Rebuild a negotiation Outcome from its JSONL log (turns, then the outcome line), with no API call."""
+    from .protocol import Turn
+
+    lines = [x for x in open(path).read().splitlines() if x.strip()]
+    return Outcome(**json.loads(lines[-1]), turns=[Turn(**json.loads(x)) for x in lines[:-1]])

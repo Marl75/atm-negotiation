@@ -1,5 +1,6 @@
 """Eval pipeline with fake agents (no API call). Needs data/raw/flights.csv."""
 
+import pandas as pd
 import pytest
 
 from atm.data import flights_path, load_flights
@@ -112,3 +113,27 @@ def test_report_reads_empty_failures_back_from_csv(tmp_path):
     df, summary, out = run_eval(FLIGHTS, n=6, agents=[RubberStamp(r) for r in Role], workers=1)
     report = aggregate([out])
     assert f"| status_quo_unsafe | {summary['status_quo_unsafe']} |" in report
+
+
+def test_summary_survives_budget_capped_rows():
+    from atm.evaluate import summarize
+
+    df, summary, _ = run_eval(FLIGHTS, n=4, agents=[Fixer(r) for r in Role], workers=1)
+    mixed = pd.concat([df, pd.DataFrame([{"flight_id": "X1", "error": "budget cap reached, not run"}])],
+                      ignore_index=True)
+    s = summarize(mixed)  # crashed with "None of [Index([-1, -2, ...])]" before the bool fix
+    assert s["errors"] == 1 and s["final_solutions_safe_when_solvable"] == summary["final_solutions_safe_when_solvable"]
+
+
+def test_outcome_rebuilt_from_log_gives_same_metrics(tmp_path):
+    import glob
+    from atm import negotiation
+    from atm.data import disruptions
+    from atm.evaluate import outcome_from_log, run_case
+
+    r = disruptions(FLIGHTS).iloc[356]
+    live = run_case(FLIGHTS, r, agents=[Fixer(x) for x in Role])
+    log = max(glob.glob(str(negotiation.LOG_DIR / "*.jsonl")))
+    rebuilt = run_case(FLIGHTS, r, outcome=outcome_from_log(log))
+    live.pop("latency_s"); rebuilt.pop("latency_s")
+    assert rebuilt == live
