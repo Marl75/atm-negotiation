@@ -46,3 +46,13 @@ def test_fixer_agents_reach_consensus_in_two_rounds():
     solved = df[~df["escalated"]]
     assert solved["consensus"].all() and (solved["rounds"] == 2).all()
     assert solved["final_hard_ok"].all() and summary["mean_holding_negotiated"] == 0
+
+
+def test_final_author_and_source_split():
+    df, summary, _ = run_eval(FLIGHTS, n=6, agents=[Fixer(r) for r in Role], workers=1)
+    solved = df[~df["escalated"]]
+    # Fixers all counter with the solver's proposal: on a tie the first agent (ATC) wins, never SOLVER
+    assert (solved["final_author"] == "ATC").all()
+    assert set(summary["slot_model_MAE_vs_real_arrival_min"]) == {"prev_leg", "proxy_LATE_AIRCRAFT_DELAY_leaky"}
+    split = summary["slot_model_MAE_vs_real_arrival_min"]
+    assert split["prev_leg"]["n"] + split["proxy_LATE_AIRCRAFT_DELAY_leaky"]["n"] == 6
