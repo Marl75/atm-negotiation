@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ATM Negotiation cover</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans+Condensed:wght@500;700&display=swap">
+<style>
+/* 1600x900 cover: title block left, negotiation flow right (3 agent strips -> rules -> supervisor), stats band bottom. */
+:root { --bg: #10171c; --panel: #172129; --strip: #1a2630; --ink: #e3eaee; --muted: #9aa9b3; --rule: #2c3a44;
+  --atc: #6cc0dc; --pilot: #e3c267; --ground: #79c795; --rules: #e3eaee; --warn: #e3a067;
+  --display: "IBM Plex Sans Condensed", "Arial Narrow", sans-serif; --mono: "IBM Plex Mono", Menlo, monospace }
+* { box-sizing: border-box; margin: 0 }
+html, body { width: 1600px; height: 900px; background: var(--bg); color: var(--ink); font-family: var(--display); overflow: hidden }
+.cover { width: 1600px; height: 900px; padding: 72px 80px 56px; display: grid;
+  grid-template-columns: 600px 1fr; grid-template-rows: 1fr auto; gap: 40px 72px;
+  background: radial-gradient(1200px 600px at 85% 20%, #16303d 0%, transparent 60%), var(--bg) }
+.eyebrow { font: 600 18px var(--mono); letter-spacing: .12em; white-space: nowrap; text-transform: uppercase; color: var(--muted) }
+h1 { font-size: 104px; line-height: .95; font-weight: 700; margin-top: 22px; letter-spacing: -.01em }
+h1 span { color: var(--atc) }
+.sub { font-size: 31px; line-height: 1.3; color: var(--muted); margin-top: 28px; max-width: 600px }
+.sub b { color: var(--ink); font-weight: 500 }
+.flow { display: grid; grid-template-columns: 1fr 60px 210px; align-items: center; gap: 0 }
+.agents { display: grid; gap: 18px }
+.strip { display: grid; grid-template-columns: 120px 1fr; background: var(--strip); border: 1px solid var(--rule);
+  border-left: 12px solid var(--c); border-radius: 4px; height: 104px }
+.strip .id { display: grid; place-items: center; font: 600 26px var(--mono); color: var(--c); border-right: 2px dashed var(--rule) }
+.strip .msg { padding: 14px 20px; display: grid; align-content: center; gap: 6px; font: 18px var(--mono); white-space: nowrap; color: var(--muted) }
+.strip .msg b { font: 600 24px var(--display); color: var(--ink) }
+.arrow { height: 100%; display: grid; place-items: center }
+.arrow svg { width: 60px; height: 360px }
+.gate { display: grid; gap: 18px }
+.box { border: 2px solid var(--c); border-radius: 4px; padding: 20px 18px; text-align: center; background: var(--panel) }
+.box b { display: block; font-size: 28px; color: var(--c) }
+.box span { font: 18px var(--mono); color: var(--muted) }
+.stats { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(4, 1fr); border-top: 2px solid var(--rule); padding-top: 30px }
+.stat { display: grid; gap: 8px; padding-right: 24px }
+.stat b { font-size: 54px; line-height: 1; font-variant-numeric: tabular-nums }
+.stat span { font: 18px/1.35 var(--mono); color: var(--muted) }
+.stat:nth-child(1) b { color: var(--ground) } .stat:nth-child(2) b { color: var(--atc) } .stat:nth-child(3) b { color: var(--warn) }
+</style>
+</head>
+<body>
+<div class="cover">
+  <div>
+    <div class="eyebrow">Autonomous SG 2026 · Airbus · Challenge #2</div>
+    <h1>ATM <span>Negotiation</span></h1>
+    <p class="sub">ATC, pilot and ground AI agents negotiate a disrupted flight in <b>three turns or less</b>.
+      Fixed rules decide what is legal. <b>A supervisor approves.</b></p>
+  </div>
+  <div class="flow">
+    <div class="agents">
+      <div class="strip" style="--c: var(--atc)"><div class="id">ATC</div><div class="msg"><b>Slot on R2, accept</b>wake 3 NM ✓ · slot ✓</div></div>
+      <div class="strip" style="--c: var(--pilot)"><div class="id">PILOT</div><div class="msg"><b>Holding 0 min, accept</b>fuel ✓ · crew 13 h ✓</div></div>
+      <div class="strip" style="--c: var(--ground)"><div class="id">GROUND</div><div class="msg"><b>G10 busy → G12</b>gate free ✓ · notice ✓</div></div>
+    </div>
+    <div class="arrow"><svg viewBox="0 0 70 360" aria-hidden="true">
+      <path d="M4 52 C40 52 40 180 62 180 M4 180 L62 180 M4 308 C40 308 40 180 62 180" fill="none" stroke="#55636e" stroke-width="3"/>
+      <path d="M52 170 L64 180 L52 190" fill="none" stroke="#9aa9b3" stroke-width="3"/></svg></div>
+    <div class="gate">
+      <div class="box" style="--c: var(--rules)"><b>RULES</b><span>challenge workbook<br>decide legality</span></div>
+      <div class="box" style="--c: var(--ground)"><b>SUPERVISOR</b><span>approves, logged</span></div>
+    </div>
+  </div>
+  <div class="stats">
+    <div class="stat"><b>200/200</b><span>safe plans kept<br>255 evaluated flights</span></div>
+    <div class="stat"><b>0</b><span>own-domain unsafe<br>accepts, 450+ flights</span></div>
+    <div class="stat"><b>5.1%</b><span>uncoordinated plans illegal<br>10,000-flight audit</span></div>
+    <div class="stat"><b>≤ 3</b><span>turns, then solver<br>with a logged reason</span></div>
+  </div>
+</div>
+</body>
+</html>
