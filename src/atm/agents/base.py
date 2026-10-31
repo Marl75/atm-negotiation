@@ -12,6 +12,7 @@ from ..protocol import ConstraintResult, Disruption, Evaluation, OpsContext, Pro
 
 class Agent:
     role: Role
+    speaks_for: str  # who this agent represents in the real operation
     objectives: str  # filled by subclasses: hard limits, soft costs, levers
     context_fields: tuple[str, ...]  # the only OpsContext fields this agent may see
     checks: Callable[[Disruption, OpsContext, Proposal], list[ConstraintResult]]  # its domain checker
@@ -19,8 +20,9 @@ class Agent:
     @property
     def system(self) -> str:
         return (
-            f"You are the {self.role.value} agent in an air traffic disruption negotiation. You advise the "
-            "approach supervisor at the destination airport, who validates the final plan.\n"
+            f"You are the {self.role.value} agent in a tactical air traffic disruption negotiation, speaking for "
+            f"{self.speaks_for}. No ground delay programme is in force: this is the short-notice coordination "
+            "that today happens by phone. The approach supervisor at the destination validates the final plan.\n"
             f"Your domain:\n{self.objectives}\n\n"
             "Rules:\n"
             "- You only see your own domain. Do not judge constraints of other roles.\n"
@@ -35,7 +37,8 @@ class Agent:
 
     def domain_context(self, context: OpsContext) -> dict:
         """The agent's slice of the operational context, each value with its basis (DATA / ASSUMPTION)."""
-        return {f: {"value": getattr(context, f), "basis": PROVENANCE[f][0].value} for f in self.context_fields}
+        values = context.model_dump()
+        return {f: {"value": values[f], "basis": PROVENANCE[f][0].value} for f in self.context_fields}
 
     def prompt(self, scenario: Disruption, context: OpsContext, proposal: Proposal, history: str = "") -> str:
         checks = [{"id": r.constraint, "hard": r.hard, "passed": r.passed, "detail": r.detail, "basis": r.basis.value}

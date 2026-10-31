@@ -14,52 +14,73 @@ class Role(str, Enum):
 
 
 class Disruption(BaseModel):
-    """One row of the DOT 2015 dataset, turned into a negotiation scenario."""
+    """One row of the DOT 2015 dataset, turned into a negotiation scenario.
+
+    Only what is known before the decision: the DOT delay-cause minutes (WEATHER_DELAY, LATE_AIRCRAFT_DELAY...)
+    are attributed after the flight and never reach the agents.
+    """
 
     flight_id: str
     airline: str
     flight_number: int
     tail_number: str | None
+    aircraft_type: str | None  # from the FAA registry, None if the tail is unknown
     origin: str
     destination: str
-    scheduled_arrival: str  # "HH:MM" local
-    scheduled_departure: str
+    scheduled_departure: str  # "HH:MM" local, origin
+    scheduled_arrival: str    # "HH:MM" local, destination
+    overnight: bool = False   # scheduled arrival on the day after the DOT date
     distance_nm: float
-    weather_delay_min: float
-    late_aircraft_delay_min: float
-    air_system_delay_min: float
-    cause: str  # "WEATHER" | "LATE_AIRCRAFT"
+    known_departure_delay_min: int  # inbound aircraft late: earliest departure vs schedule, known before departure
+    known_delay_source: str
+    cause: str  # "WEATHER" (scenario: destination capacity cut) | "LATE_AIRCRAFT"
 
 
 class Basis(str, Enum):
     """Where a threshold comes from. Shown in the log so judges see what is real vs simulated."""
 
     REGULATORY = "REGULATORY"  # published rule, cited
-    DATA = "DATA"              # derived from the DOT 2015 row / file
+    DATA = "DATA"              # derived from the DOT 2015 file or the FAA registry
     ASSUMPTION = "ASSUMPTION"  # simulated value, to validate with operators
 
 
-class OpsContext(BaseModel):
-    """Operational facts the DOT file does not contain. Each field's basis is listed in context.py."""
+class RunwaySlot(BaseModel):
+    """First-come-first-served landing slot for this flight on one runway, after the arrivals ready before it."""
 
-    wake_category: str            # own aircraft, ICAO L/M/H/J
-    leader_wake_category: str     # aircraft ahead on final
+    earliest_delay_min: int        # minutes after scheduled arrival
+    leader_category: str | None    # FAA wake category of the arrival just ahead on this runway
+    leader_flight: str | None
+
+
+class OpsContext(BaseModel):
+    """Operational facts the DOT file does not contain directly. Each field's basis is listed in context.py."""
+
+    wake_category: str                  # own aircraft, FAA SUPER/HEAVY/B757/LARGE/SMALL
     runways: list[str]
     closed_runways: list[str]
+    runway_slots: dict[str, RunwaySlot]  # open runways only
+    earliest_arrival_delay_min: int     # best slot over open runways
+    ready_arrival_delay_min: int        # arrival delay if the aircraft departs as soon as it is ready
+    curfew: str | None                  # "HH:MM-HH:MM" no commercial arrivals at destination
     gates: list[str]
-    blocked_gates: list[str]
-    earliest_arrival_delay_min: int   # no landing slot before this
-    holding_fuel_available_min: int   # fuel above the regulatory reserve, in minutes of holding
-    crew_shift_end: str               # "HH:MM", ground crew at destination
-    next_departure: str | None        # same tail number, same day
+    planned_gate: str
+    gates_busy_until_min: dict[str, int]  # minutes after the DOT date's midnight; 0 = free
+    holding_fuel_available_min: int     # fuel above the regulatory reserve, in minutes of holding
+    crew_fdp_end_min: int | None        # flight crew: end of max flight duty period, minutes after midnight
+    crew_shift_end: str                 # "HH:MM", ground crew at destination
+    next_departure: str | None          # same tail number, same day
     min_turnaround_min: int
 
 
 class Proposal(BaseModel):
-    """A candidate resolution. Same shape whoever proposes it, so it can be checked by every domain."""
+    """A candidate resolution. Same shape whoever proposes it, so it can be checked by every domain.
+
+    Delay not flown as airborne holding is taken on the ground at the origin, before departure (EDCT-like).
+    """
 
     revised_arrival_delay_min: int = Field(ge=0, description="Total minutes added to scheduled arrival, holding included")
-    holding_min: int = Field(ge=0, description="Airborne holding before approach (part of the delay above)")
+    holding_min: int = Field(ge=0, description="Airborne holding before approach (part of the delay above); "
+                                               "the rest of the delay is a ground hold at the origin")
     slot_gap_min: float = Field(ge=0, description="Minutes behind the preceding arrival on the same runway")
     runway: str
     gate: str

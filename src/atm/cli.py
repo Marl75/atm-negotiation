@@ -22,15 +22,12 @@ def check() -> None:
 
 
 def run(row: int) -> None:
-    from .context import build_context
-    from .data import disruptions, load_flights, next_departure_same_tail, row_to_disruption
+    from .data import build_scenario, disruptions, load_flights
     from .negotiation import naive_initial, negotiate
 
     flights = load_flights()
-    r = disruptions(flights).iloc[row]
-    s = row_to_disruption(r)
-    c = build_context(s, next_departure_same_tail(flights, r))
-    out = negotiate(s, c, naive_initial(c))
+    s, c = build_scenario(flights, disruptions(flights).iloc[row])
+    out = negotiate(s, c, naive_initial(s, c))
     print(out.model_dump(exclude={"turns"}))
 
 

@@ -7,14 +7,18 @@ from datetime import datetime, timezone
 from .agents import ATCAgent, GroundAgent, PilotAgent
 from .config import LOG_DIR, MAX_ROUNDS
 from .constraints import check_all, hard_ok
-from .fallback import deterministic_resolution
+from .fallback import deterministic_resolution, min_gap
 from .protocol import LEVERS, Disruption, Evaluation, OpsContext, Outcome, Proposal, Role, Turn
 
 
-def naive_initial(context: OpsContext) -> Proposal:
-    """ATC's unilateral first offer (first runway / gate, short gap, no coordination). Also the status-quo baseline."""
-    return Proposal(revised_arrival_delay_min=context.earliest_arrival_delay_min, holding_min=15, slot_gap_min=1.5,
-                    runway=context.runways[0], gate=context.gates[0], rationale="initial ATC slot")
+def naive_initial(s: Disruption, context: OpsContext) -> Proposal:
+    """Status quo without coordination, also ATC's first offer: the aircraft departs as soon as it is ready, gets the
+    first-come-first-served slot, waits for it in airborne holding, keeps its planned gate. Separation is respected."""
+    runway = min(context.runway_slots, key=lambda r: context.runway_slots[r].earliest_delay_min)
+    slot = context.runway_slots[runway].earliest_delay_min
+    return Proposal(revised_arrival_delay_min=slot, holding_min=max(0, slot - context.ready_arrival_delay_min),
+                    slot_gap_min=min_gap(context, runway), runway=runway, gate=context.planned_gate,
+                    rationale="status quo: depart when ready, absorb the arrival queue in airborne holding")
 
 
 def negotiate(scenario: Disruption, context: OpsContext, initial: Proposal, agents: list | None = None) -> Outcome:

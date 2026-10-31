@@ -1,9 +1,10 @@
 """Evaluation bench: run the negotiation on a stratified sample of rows and compare with baselines.
 
 Baselines
-- status quo: ATC's unilateral first offer, applied without coordination (naive_initial)
+- status quo: no coordination - depart when ready, wait for the first-come-first-served slot in airborne holding,
+  keep the planned gate (naive_initial). Separation is respected; its failures are measured, not constructed.
 - deterministic: the non-AI fallback solver alone
-- reality: ARRIVAL_DELAY / next leg DEPARTURE_DELAY recorded by the DOT (never shown to the agents)
+- reality: ARRIVAL_DELAY / DEPARTURE_DELAY / next leg DEPARTURE_DELAY recorded by the DOT (never shown to the agents)
 """
 
 from __future__ import annotations
@@ -17,13 +18,13 @@ import pandas as pd
 from . import llm
 from .config import ROOT
 from .constraints import _minutes, check_all, hard_ok, new_arrival_min
-from .context import build_context
-from .data import disruptions, next_leg, row_to_disruption, _hhmm
+from .data import build_scenario, disruptions, next_leg
 from .fallback import deterministic_resolution
 from .negotiation import naive_initial, negotiate
 from .protocol import Outcome, Proposal
 
 EVAL_DIR = ROOT / "eval"
+HOLDING_FUEL_KG_PER_MIN = 40  # ASSUMPTION: A320-class holding burn ~2.4 t/h; a ground hold burns ~0 (APU aside)
 
 
 def sample(flights: pd.DataFrame, n: int, seed: int = 0) -> pd.DataFrame:
@@ -44,14 +45,22 @@ def _unsafe_accepts(out: Outcome) -> int:
     return sum(e.accept for t in out.turns if not hard_ok(t.hard_checks) for e in t.evaluations)
 
 
+def _hard_fails(s, c, p: Proposal | None) -> list[str]:
+    return [] if p is None else [r.constraint for r in check_all(s, c, p) if r.hard and not r.passed]
+
+
 def run_case(flights: pd.DataFrame, r: pd.Series, agents: list | None = None) -> dict:
-    s = row_to_disruption(r)
+    s, c = build_scenario(flights, r)
     leg = next_leg(flights, r)
-    c = build_context(s, None if leg is None else _hhmm(leg["SCHEDULED_DEPARTURE"]))
-    naive, fb = naive_initial(c), deterministic_resolution(s, c)
+    naive, fb = naive_initial(s, c), deterministic_resolution(s, c)
     row = dict(flight_id=s.flight_id, cause=s.cause, origin=s.origin, destination=s.destination,
-               has_next_leg=leg is not None, real_arrival_delay=r["ARRIVAL_DELAY"],
-               naive_hard_fails=sum(not x.passed for x in check_all(s, c, naive) if x.hard),
+               aircraft_type=s.aircraft_type, wake_category=c.wake_category,
+               known_delay_from_prev_leg=s.known_delay_source.startswith("previous leg"),
+               known_departure_delay=s.known_departure_delay_min, real_departure_delay=r["DEPARTURE_DELAY"],
+               slot_delay=c.earliest_arrival_delay_min, real_arrival_delay=r["ARRIVAL_DELAY"],
+               has_next_leg=leg is not None,
+               status_quo_holding=naive.holding_min, status_quo_hard_fails="|".join(_hard_fails(s, c, naive)),
+               escalated=fb is None,
                fallback_holding=None if fb is None else fb.holding_min,
                fallback_delay=None if fb is None else fb.revised_arrival_delay_min,
                fallback_soft_fails=_soft_fails(s, c, fb))
@@ -76,29 +85,40 @@ def run_case(flights: pd.DataFrame, r: pd.Series, agents: list | None = None) ->
 
 def summarize(df: pd.DataFrame) -> dict:
     ok = df[df["error"].isna()]
+    solved = ok[~ok["escalated"]]
     leg = ok.dropna(subset=["pred_next_dep_delay"]) if "pred_next_dep_delay" in ok else ok.iloc[0:0]
     err = (leg["pred_next_dep_delay"] - leg["real_next_dep_delay"]) if len(leg) else pd.Series(dtype=float)
+    mean = lambda s, d=1: round(s.mean(), d) if len(s) else None
+    sq_fails = ok["status_quo_hard_fails"].str.split("|").explode()
+    holding_saved = (ok["status_quo_holding"] - ok["final_holding"]).dropna()
     return {
         "cases": len(df), "errors": int(df["error"].notna().sum()),
-        "consensus_rate": round(ok["consensus"].mean(), 2) if len(ok) else None,
-        "fallback_rate": round((ok["resolved_by"] == "deterministic_fallback").mean(), 2) if len(ok) else None,
-        "consensus_within_3_rounds": int((ok["consensus"] & (ok["rounds"] <= 3)).sum()) if len(ok) else 0,
-        "mean_rounds": round(ok["rounds"].mean(), 2) if len(ok) else None,
-        "final_solutions_safe": f"{int(ok['final_hard_ok'].sum())}/{len(ok)}",
+        "consensus_rate": mean(ok["consensus"], 2),
+        "fallback_rate": mean(ok["resolved_by"] == "deterministic_fallback", 2),
+        "consensus_within_3_rounds": int((ok["consensus"] & (ok["rounds"] <= 3)).sum()),
+        "mean_rounds": mean(ok["rounds"], 2),
+        "escalated_to_human_no_safe_option": f"{int(ok['escalated'].sum())}/{len(ok)}",
+        "final_solutions_safe_when_solvable": f"{int(solved['final_hard_ok'].sum())}/{len(solved)}",
         "agent_unsafe_accepts_caught": int(ok["unsafe_accepts"].sum()) if len(ok) else 0,
-        "status_quo_unsafe": f"{int((ok['naive_hard_fails'] > 0).sum())}/{len(ok)}",
-        "mean_holding_negotiated": round(ok["final_holding"].mean(), 1) if len(ok) else None,
-        "mean_holding_fallback": round(ok["fallback_holding"].mean(), 1) if len(ok) else None,
-        "mean_holding_status_quo": 15,
-        "mean_delay_negotiated": round(ok["final_delay"].mean(), 1) if len(ok) else None,
-        "mean_delay_fallback": round(ok["fallback_delay"].mean(), 1) if len(ok) else None,
-        "mean_real_arrival_delay": round(ok["real_arrival_delay"].mean(), 1) if len(ok) else None,
-        "mean_soft_fails_negotiated": round(ok["final_soft_fails"].mean(), 2) if len(ok) else None,
-        "mean_soft_fails_fallback": round(ok["fallback_soft_fails"].mean(), 2) if len(ok) else None,
+        "status_quo_unsafe": f"{int((ok['status_quo_hard_fails'] != '').sum())}/{len(ok)}",
+        "status_quo_failures": sq_fails[sq_fails != ""].value_counts().to_dict(),
+        "mean_holding_status_quo": mean(ok["status_quo_holding"]),
+        "mean_holding_negotiated": mean(ok["final_holding"].dropna()),
+        "mean_holding_fallback": mean(ok["fallback_holding"].dropna()),
+        "fuel_saved_kg_per_flight_vs_status_quo": mean(holding_saved * HOLDING_FUEL_KG_PER_MIN, 0),
+        "mean_delay_negotiated": mean(ok["final_delay"].dropna()),
+        "mean_delay_fallback": mean(ok["fallback_delay"].dropna()),
+        "mean_soft_fails_negotiated": mean(ok["final_soft_fails"].dropna(), 2),
+        "mean_soft_fails_fallback": mean(ok["fallback_soft_fails"].dropna(), 2),
+        "known_delay_from_prev_leg_share": mean(ok["known_delay_from_prev_leg"], 2),
+        "known_departure_delay_MAE_vs_real_min": mean((ok["known_departure_delay"] - ok["real_departure_delay"]).abs()),
+        "slot_model_MAE_vs_real_arrival_min": mean((ok["slot_delay"] - ok["real_arrival_delay"]).abs()),
+        "slot_model_bias_vs_real_arrival_min": mean(ok["slot_delay"] - ok["real_arrival_delay"]),
+        "aircraft_type_from_faa_registry": mean(ok["aircraft_type"].notna(), 2),
         "next_leg_cases": len(leg),
-        "next_leg_delay_MAE_min": round(err.abs().mean(), 1) if len(err) else None,
-        "next_leg_delay_bias_min": round(err.mean(), 1) if len(err) else None,
-        "mean_latency_s": round(ok["latency_s"].mean(), 1) if len(ok) else None,
+        "next_leg_delay_MAE_min": mean(err.abs()),
+        "next_leg_delay_bias_min": mean(err),
+        "mean_latency_s": mean(ok["latency_s"]),
         "llm_calls": llm.USAGE["calls"], "cost_usd": round(llm.cost_usd(), 2),
     }
 

@@ -1,18 +1,22 @@
-"""Offline tests (no API call): protocol, constraints, fallback."""
+"""Offline tests (no API call): protocol, rules, traffic model, constraints, fallback."""
 
+from atm.aircraft import category_from_model
 from atm.constraints import check_all, hard_ok
 from atm.context import PROVENANCE, build_context
 from atm.fallback import deterministic_resolution
-from atm.negotiation import select_counter
+from atm.negotiation import naive_initial, select_counter
 from atm.protocol import Basis, Disruption, Evaluation, OpsContext, Proposal, Role
+from atm.rules import max_fdp_hours, required_nm
+from atm.traffic import Arrival, spacing_factor
 
 S = Disruption(
     flight_id="AA100-20150101", airline="AA", flight_number=100, tail_number="N123AA",
-    origin="ORD", destination="DFW", scheduled_departure="08:00", scheduled_arrival="10:30",
-    distance_nm=700.0, weather_delay_min=25, late_aircraft_delay_min=0, air_system_delay_min=5,
+    aircraft_type="BOEING 737-823", origin="ORD", destination="DFW", scheduled_departure="08:00",
+    scheduled_arrival="10:30", distance_nm=700.0, known_departure_delay_min=25, known_delay_source="test",
     cause="WEATHER",
 )
-C = build_context(S, next_departure="11:30")
+C = build_context(S, next_departure="11:30")  # 2 runways, R1 closed by weather, no traffic: slot = ready = +25
+SCHED = 10 * 60 + 30
 
 
 def _p(**kw) -> Proposal:
@@ -20,12 +24,16 @@ def _p(**kw) -> Proposal:
     return Proposal(**(base | kw))
 
 
-def failed(p: Proposal) -> set[str]:
-    return {r.constraint for r in check_all(S, C, p) if not r.passed}
+def failed(p: Proposal, s: Disruption = S, c: OpsContext = C) -> set[str]:
+    return {r.constraint for r in check_all(s, c, p) if not r.passed}
 
 
 def test_every_context_field_has_provenance():
     assert set(PROVENANCE) == set(OpsContext.model_fields)
+
+
+def test_agents_never_see_ex_post_delay_causes():
+    assert not any(k in f for f in Disruption.model_fields for k in ("weather_delay", "late_aircraft", "air_system"))
 
 
 def test_every_check_is_sourced():
@@ -36,17 +44,66 @@ def test_safe_proposal_passes_hard_checks():
     assert hard_ok(check_all(S, C, _p()))
 
 
+def test_faa_wake_rules_and_categories():
+    assert required_nm("HEAVY", "LARGE") == 5 and required_nm(None, "LARGE") == 3 and required_nm("LARGE", "LARGE") == 3
+    assert [category_from_model(m) for m in ("BOEING 757-232", "BOEING 767-332ER", "BOEING 737-7H4", "AIRBUS A380-861",
+                                              "BOMBARDIER INC CL-600-2B19")] == ["B757", "HEAVY", "LARGE", "SUPER", "LARGE"]
+
+
+def test_part_117_table_b():
+    assert max_fdp_hours(6 * 60, 2) == 13 and max_fdp_hours(23 * 60 + 30, 5) == 9 and max_fdp_hours(8 * 60, 9) == 11.5
+
+
 def test_fuel_reserve_violation_is_caught():
-    assert "final_reserve_fuel" in failed(_p(holding_min=30))
+    assert "final_reserve_fuel" in failed(_p(revised_arrival_delay_min=55, holding_min=30))
 
 
-def test_wake_separation_medium_behind_heavy():
-    # 1.5 min at 140 kt = 3.5 NM < 5 NM required for M behind H
-    assert "wake_separation" in failed(_p(slot_gap_min=1.5))
+def test_cannot_depart_before_aircraft_is_ready():
+    # 25 min delay with 10 min holding means leaving 10 min before the inbound aircraft is ready
+    assert "departure_feasible" in failed(_p(holding_min=10))
+
+
+def _bank(*arrivals) -> list[Arrival]:
+    return [Arrival(f"X{i}", al, SCHED + ready, cat) for i, (al, ready, cat) in enumerate(arrivals)]
+
+
+def test_queue_ahead_pushes_slot_and_sets_leader():
+    c = build_context(S, _bank(("UA", 20, "HEAVY"), ("DL", 22, "LARGE"), ("UA", 24, "HEAVY")))
+    slot = c.runway_slots["R2"]
+    assert slot.earliest_delay_min > 25 and slot.leader_category == "HEAVY" and slot.leader_flight == "X2"
+    # 1.5 min at 140 kt = 3.5 NM < 5 NM required for a LARGE behind a HEAVY
+    assert "wake_separation" in failed(_p(revised_arrival_delay_min=slot.earliest_delay_min, slot_gap_min=1.5), c=c)
+    assert "landing_slot_available" in failed(_p(), c=c)
+
+
+def test_closing_a_runway_saturates_capacity():
+    assert spacing_factor(2, 1, weather=True) > 2 * spacing_factor(2, 2, weather=False)
 
 
 def test_closed_runway_and_early_slot_are_caught():
     assert {"runway_open", "landing_slot_available"} <= failed(_p(runway="R1", revised_arrival_delay_min=10))
+
+
+def test_status_quo_waits_in_the_air_and_can_fail_on_its_own():
+    s = S.model_copy(update={"cause": "LATE_AIRCRAFT"})
+    c = build_context(s, _bank(*[("AA", 20 + i, "LARGE") for i in range(6)]))
+    sq = naive_initial(s, c)
+    assert sq.holding_min == sq.revised_arrival_delay_min - 25 > 0 and sq.gate == c.planned_gate
+    assert "gate_available" in failed(sq, s, c)  # same-airline arrivals just ahead still hold the planned gate
+    fb = deterministic_resolution(s, c)
+    assert fb.holding_min == 0 and hard_ok(check_all(s, c, fb))
+
+
+def test_crew_duty_limit_escalates_when_no_safe_option():
+    c = build_context(S, crew_fdp_end_min=SCHED + 10)
+    assert "flight_crew_duty" in failed(_p(), c=c)
+    assert deterministic_resolution(S, c) is None  # no safe option: a human decides (117.19 or reserve crew)
+
+
+def test_curfew_is_hard():
+    s = S.model_copy(update={"destination": "SNA", "scheduled_arrival": "22:50"})
+    c = build_context(s)
+    assert "airport_curfew" in failed(_p(), s, c) and c.curfew == "23:00-07:00"
 
 
 def test_turnaround_is_soft():
@@ -65,32 +122,17 @@ def _ev(role: Role, **kw) -> Evaluation:
 
 
 def test_select_counter_prefers_less_holding():
-    # Round 1 of the real MQ3168 run: same slot, the pilot asked for 10 min holding instead of 15
-    evs = [_ev(Role.ATC, holding_min=15, slot_gap_min=3.0), _ev(Role.PILOT, holding_min=10, slot_gap_min=3.0),
-           _ev(Role.GROUND, holding_min=15, slot_gap_min=3.0)]
-    p, who, reason = select_counter(S, C, evs)
-    # The holding is moved to a ground hold at origin; the pilot still ranks above ATC among raw counters
-    assert who.startswith("GROUND_HOLD") and p.holding_min == 0
-    assert reason.index("| PILOT (") < reason.index("| ATC (")
+    # Same slot: the pilot's ground hold beats airborne holding, and an agent wins a tie with the solver
+    evs = [_ev(Role.ATC, revised_arrival_delay_min=40, holding_min=15),
+           _ev(Role.PILOT, revised_arrival_delay_min=25, holding_min=0)]
+    p, role, reason = select_counter(S, C, evs)
+    assert role == Role.PILOT and p.holding_min == 0 and "SOLVER" in reason
 
 
 def test_select_counter_safety_beats_cost():
-    # A cheaper counter on the closed runway must lose to a costlier safe one
-    evs = [_ev(Role.ATC, runway="R1", holding_min=0), _ev(Role.GROUND, runway="R2", holding_min=10)]
-    p = select_counter(S, C, evs)[0]
-    assert p.runway == "R2" and hard_ok(check_all(S, C, p))
-
-
-def test_select_counter_solver_rescues_unsafe_counters():
-    evs = [_ev(Role.ATC, runway="R1"), _ev(Role.PILOT, runway="R1", holding_min=30)]
-    p, who, _ = select_counter(S, C, evs)
-    assert who == "SOLVER" and hard_ok(check_all(S, C, p))
-
-
-def test_select_counter_agent_wins_tie_with_solver():
-    solver = deterministic_resolution(S, C)
-    evs = [Evaluation(role=Role.ATC, accept=False, counter_proposal=solver)]
-    assert select_counter(S, C, evs)[1] == Role.ATC
+    # A cheaper counter on the closed runway must lose to a safe one
+    evs = [_ev(Role.ATC, runway="R1", revised_arrival_delay_min=0), _ev(Role.GROUND)]
+    assert select_counter(S, C, evs)[1] == Role.GROUND
 
 
 def test_select_counter_none_without_counters():
@@ -111,17 +153,17 @@ def test_agents_only_see_their_domain():
 def test_prompt_carries_domain_checks():
     from atm.agents import ATCAgent
 
-    prompt = ATCAgent().prompt(S, C, _p(slot_gap_min=1.5))
+    c = build_context(S, _bank(("UA", 24, "HEAVY")))
+    prompt = ATCAgent().prompt(S, c, _p(revised_arrival_delay_min=40, slot_gap_min=1.5))
     assert '"id": "wake_separation"' in prompt and '"passed": false' in prompt
 
 
 def test_select_counter_merges_disjoint_fixes():
-    # Real row-0 run: ATC fixed the wake gap, ground fixed the gate, each alone left the other failure
-    current = _p(slot_gap_min=1.5, gate="G1")
-    c = build_context(S.model_copy(update={"cause": "LATE_AIRCRAFT"}), next_departure="11:30")
-    evs = [_ev(Role.ATC, slot_gap_min=2.5, gate="G1"), _ev(Role.GROUND, slot_gap_min=1.5, gate="G2")]
-    p, who, reason = select_counter(S, c, evs, current=current)
-    assert who == "MERGED" and p.slot_gap_min == 2.5 and p.gate == "G2" and hard_ok(check_all(S, c, p))
+    # ATC fixes the slot, pilot moves the wait to the ground: each alone leaves the other failure
+    current = _p(revised_arrival_delay_min=20, holding_min=10)
+    evs = [_ev(Role.ATC, revised_arrival_delay_min=25, holding_min=10), _ev(Role.PILOT, revised_arrival_delay_min=20)]
+    p, who, reason = select_counter(S, C, evs, current=current)
+    assert who == "MERGED" and p.revised_arrival_delay_min == 25 and p.holding_min == 0 and hard_ok(check_all(S, C, p))
 
 
 def test_merge_ignores_changes_outside_own_levers():

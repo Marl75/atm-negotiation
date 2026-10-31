@@ -32,12 +32,17 @@ class Fixer:
 
 def test_rubber_stamp_agents_are_overruled():
     df, summary, _ = run_eval(FLIGHTS, n=6, agents=[RubberStamp(r) for r in Role], workers=1)
-    assert summary["errors"] == 0 and summary["consensus_rate"] == 0
-    assert summary["fallback_rate"] == 1 and summary["final_solutions_safe"] == "6/6"
-    assert summary["agent_unsafe_accepts_caught"] == 18  # 3 agents x 6 cases
+    unsafe_status_quo = int((df["status_quo_hard_fails"] != "").sum())
+    assert summary["errors"] == 0
+    # Agents accept everything: consensus only where the status quo is already safe, the checker refuses the rest
+    assert int(df["consensus"].sum()) == 6 - unsafe_status_quo
+    assert summary["agent_unsafe_accepts_caught"] == 3 * unsafe_status_quo
+    solved = df[~df["escalated"]]
+    assert solved["final_hard_ok"].all()
 
 
 def test_fixer_agents_reach_consensus_in_two_rounds():
     df, summary, _ = run_eval(FLIGHTS, n=6, agents=[Fixer(r) for r in Role], workers=1)
-    assert summary["consensus_rate"] == 1 and summary["mean_rounds"] == 2
-    assert summary["final_solutions_safe"] == "6/6" and summary["mean_holding_negotiated"] == 0
+    solved = df[~df["escalated"]]
+    assert solved["consensus"].all() and (solved["rounds"] == 2).all()
+    assert solved["final_hard_ok"].all() and summary["mean_holding_negotiated"] == 0
