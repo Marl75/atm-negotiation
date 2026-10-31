@@ -59,6 +59,7 @@ registry.
 
 ## Links to fill in
 - Repository: https://github.com/Marl75/atm-negotiation
+- Slide deck (8 slides, speaker notes = script): https://claude.ai/artifact/13M89yVAvkzhXaAfPJDyho (share it first)
 - Pitch script: https://claude.ai/artifact/EoRVEkVsGTZEc91nQ1Zjq9 (share it first)
 - Adoption page: https://claude.ai/artifact/SgUFqbSEUWMSdPyVgEVJch (share it first)
 - Deviations slide: https://claude.ai/artifact/7cLRCpXndiGV9hRumHaTg2 (share it first)
