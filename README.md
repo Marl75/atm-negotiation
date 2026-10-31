@@ -81,8 +81,18 @@ Chaque contrôle du log porte `hard` (sécurité, non négociable) ou soft (coû
 Supprimé de la v0 : `max_holding` (pas de limite réglementaire, c'est le carburant qui limite) et `crew_overtime` sur le retard total (faux : dépend de l'heure d'arrivée vs fin de service).
 
 ### Ce qui est connu au moment de décider (pas de fuite d'information)
-Les minutes `WEATHER_DELAY`, `LATE_AIRCRAFT_DELAY`, `AIRLINE_DELAY`… sont **attribuées par le DOT après le vol**. Elles
-ne sont plus données aux agents ni utilisées pour le créneau. Ce qu'on utilise à la place :
+Les minutes `WEATHER_DELAY`, `LATE_AIRCRAFT_DELAY`, `AIRLINE_DELAY`… sont **attribuées par le DOT après le vol**, et
+les 5 colonnes de cause s'additionnent exactement à `ARRIVAL_DELAY` sur 100 % du fichier.
+
+**Conformité à la consigne.** Le PDF demande de *« passer les paramètres de la ligne aux 3 agents »*. On le fait : les
+minutes de cause sont dans `dot_delay_causes_min` du scénario, que les 3 agents reçoivent, avec la mention
+« attribution DOT après le vol, non utilisée par les contrôles ». Les agents s'en servent pour comprendre le type de
+perturbation. En revanche, **aucune partie déterministe ne les lit** : ni le créneau, ni les contrôles, ni le statu
+quo, ni le solveur, ni l'audit. Un test le vérifie (gonfler ces minutes à 999 ne change aucun résultat déterministe).
+Conséquence pour l'évaluation : quand on compare à la réalité une proposition **écrite par un agent**, la fuite peut
+y entrer ; les comparaisons faites sur le créneau et le solveur, elles, n'en dépendent pas.
+
+Ce que les règles utilisent à la place :
 - **Retard de l'avion entrant** : vol précédent du même avion (même immatriculation) arrivé en retard + 35 min de
   rotation (40 % des lignes). Sinon `LATE_AIRCRAFT_DELAY` sert d'approximation de l'heure d'arrivée prévue de l'avion
   entrant, et c'est signalé dans le log.
@@ -165,6 +175,30 @@ v2 = file d'arrivée reconstituée, statu quo réaliste, règles FAA, Part 117, 
 v1 (avant recadrage) : consensus 20/20 en 2 tours, mais le statu quo était construit pour échouer (0/20 sûr) et le
 créneau utilisait `WEATHER_DELAY + LATE_AIRCRAFT_DELAY` connus après coup.
 
+## Audit du statu quo sur 10 000 vols — règles seules, sans LLM (`atm audit --n 10000`)
+Tirage aléatoire de 10 000 vols perturbés (seed 0), ~1 min, 0 $. Pour chaque vol : le plan sans coordination
+enfreint-il une règle *hard* ? Intervalles de confiance à 95 % (Wilson). Sensibilité : 4 ou 8 portes par compagnie,
+porte prévue G1 ou tirée au hasard.
+
+| Mesure | Hypothèse par défaut (4 portes, G1) | Plage sur les 4 variantes |
+|---|---|---|
+| Plan sans coordination qui enfreint une règle de sécurité | 16,0 % [15,3–16,8] | **9,3 % → 16,0 %** |
+| dont porte occupée | 13,8 % | 6,7 % → 13,8 % |
+| dont temps de service équipage (FAA Part 117) dépassé | **2,4 %** [2,1–2,8] | identique |
+| dont réserve carburant entamée | **0,5 %** [0,4–0,7] | identique |
+| Aucun plan sûr, escalade vers un humain | 2,9 % [2,6–3,2] | 2,5 → 2,9 % |
+| Vols avec attente en vol | 4,2 % (médiane 4 min) | identique |
+| Carburant économisé par le solveur | moyenne 17 kg/vol, **médiane 0** | ≈ identique |
+
+**Lecture honnête**
+- **Chiffre défendable : ~3 %** des vols perturbés avaient un plan non coordonné qui violait une règle FAA de temps de
+  service ou de carburant, indépendamment des hypothèses de portes. Le temps de service repose sur l'hypothèse
+  « l'équipage suit l'avion » (changement d'équipage supposé là où l'horaire dépasserait déjà la limite).
+- **Conflits de porte : pas annonçables en l'état.** Ils se divisent presque par deux entre 4 et 8 portes, et se
+  concentrent sur les hubs (ATL 38 %, DFW 36 %, ORD 30 %) — justement là où « 4 portes par compagnie » est le plus faux
+  (Delta a plus de 100 portes à ATL). Le choix G1 ne pèse presque pas (−1,5 point en tirage aléatoire).
+- **L'attente en vol n'est pas le problème** sur ces données (4 % des vols, gain carburant médian nul).
+
 ## Démarrage
 ```bash
 cp .env.example .env      # puis mettre ANTHROPIC_API_KEY
@@ -172,6 +206,7 @@ uv run atm check          # vérifie la clé API et les données
 uv run pytest             # tests hors ligne (agents factices, aucun coût)
 uv run atm run --row 0    # une négociation (appelle l'API)
 uv run atm eval --n 20    # banc d'éval (~0,05 $ par vol)
+uv run atm audit --n 10000 --gates 4 --planned-gate first   # audit du statu quo, sans LLM, 0 $
 ```
 
 ## TODO
