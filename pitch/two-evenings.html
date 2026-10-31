@@ -1,0 +1,649 @@
+<meta charset="utf-8">
+<title>Same Flight, Two Evenings</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Overpass:wght@400;600;800&family=Overpass+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: an airport ops screen. Two evenings side by side (phone tree vs agents), each with a split-flap board,
+   the three-team network and an animated apron; then a rule sandbox, the limits, and the figures. */
+:root {
+  --bg: #EEF1F3; --panel: #FFFFFF; --ink: #14202A; --muted: #56656F; --line: #CBD3D9;
+  --taxi: #D9A21B;      /* taxiway centreline yellow */
+  --sky: #1F6F8F;       /* agents / accent */
+  --good: #2E7D4F; --bad: #B8482A;
+  --board: #1B242C; --flap: #2A3640; --flapInk: #F4E7B8;
+  --apron: #DCE2E6; --rwy: #9AA6AE;
+  --display: "Overpass", "Arial Narrow", Arial, sans-serif;
+  --mono: "Overpass Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0E151B; --panel: #16212A; --ink: #E6EDF1; --muted: #9AABB6; --line: #2B3944;
+  --taxi: #F0C442; --sky: #63BEDD; --good: #6CC793; --bad: #EE8A68;
+  --board: #0A1015; --flap: #1C2730; --flapInk: #F6E8B4; --apron: #1D2A33; --rwy: #50606B; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0E151B; --panel: #16212A; --ink: #E6EDF1; --muted: #9AABB6; --line: #2B3944;
+  --taxi: #F0C442; --sky: #63BEDD; --good: #6CC793; --bad: #EE8A68;
+  --board: #0A1015; --flap: #1C2730; --flapInk: #F6E8B4; --apron: #1D2A33; --rwy: #50606B; color-scheme: dark }
+
+* { box-sizing: border-box }
+body { background: var(--bg); color: var(--ink); font: 16px/1.55 var(--display) }
+.wrap { max-width: 1240px; margin: 0 auto; padding-block: 28px 64px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 40px }
+h1, h2, h3 { margin: 0; text-wrap: balance; letter-spacing: -.01em }
+h1 { font-size: clamp(34px, 5.4vw, 60px); line-height: 1; font-weight: 800 }
+h2 { font-size: clamp(24px, 3vw, 32px); font-weight: 800 }
+h3 { font-size: 18px; font-weight: 800 }
+p { margin: 0 }
+.eyebrow { font: 700 12px var(--mono); letter-spacing: .14em; text-transform: uppercase; color: var(--muted) }
+.lede { font-size: 18px; color: var(--muted); max-width: 64ch }
+header.top { display: grid; gap: 14px }
+
+/* controls */
+.controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center }
+.tab, .btn { font: 700 14px var(--display); border: 1.5px solid var(--line); background: var(--panel); color: var(--ink);
+  padding: 9px 14px; border-radius: 6px; cursor: pointer }
+.tab[aria-selected="true"] { border-color: var(--ink); background: var(--ink); color: var(--bg) }
+.btn.primary { background: var(--taxi); border-color: var(--taxi); color: #1B1405 }
+.tab:focus-visible, .btn:focus-visible, input:focus-visible { outline: 3px solid var(--sky); outline-offset: 2px }
+.spacer { flex: 1 }
+.speed { font: 600 13px var(--mono); color: var(--muted) }
+
+/* at a glance */
+.glance { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px }
+.glance div { background: var(--panel); border: 1px solid var(--line); padding: 14px 16px; display: grid; gap: 4px; min-width: 0 }
+.glance .k { font: 700 12px var(--mono); letter-spacing: .1em; text-transform: uppercase }
+.glance .today .k { color: var(--bad) } .glance .tool .k { color: var(--good) }
+
+/* the two evenings */
+.stage { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 520px), 1fr)); gap: 18px }
+.side { background: var(--panel); border: 1px solid var(--line); display: grid; gap: 14px; padding: 16px; min-width: 0;
+  border-top: 6px solid var(--c) }
+.side[data-side="today"] { --c: var(--bad) } .side[data-side="tool"] { --c: var(--sky) }
+.side-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap }
+.side-head h3 { color: var(--c) }
+.side-head span { font: 600 12px var(--mono); color: var(--muted) }
+
+.board { background: var(--board); padding: 10px; display: grid; grid-template-columns: auto 1fr auto auto; gap: 6px 10px;
+  align-items: center; border-radius: 4px; overflow-x: auto }
+.board .lbl { font: 700 10px var(--mono); letter-spacing: .12em; color: #8D9AA4; text-transform: uppercase }
+.flaps { display: flex; gap: 2px }
+.flap { width: 1.05em; height: 1.45em; display: grid; place-items: center; background: var(--flap); color: var(--flapInk);
+  font: 700 18px var(--mono); border-radius: 2px; position: relative }
+.flap::after { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: #0006 }
+.flap.go { animation: flip .26s ease-in-out }
+.flap.bad { color: #FF9B78 } .flap.good { color: #8EE0AE }
+@keyframes flip { 0% { transform: rotateX(0) } 50% { transform: rotateX(88deg) } 100% { transform: rotateX(0) } }
+
+svg { display: block; width: 100%; height: auto; max-width: 100% }
+.net .edge { stroke: var(--line); stroke-width: 2; fill: none }
+.net .edge.dash { stroke-dasharray: 5 6 }
+.node circle { fill: var(--panel); stroke: var(--ink); stroke-width: 2 }
+.node text.code { font: 800 15px var(--mono); fill: var(--ink); text-anchor: middle; dominant-baseline: central }
+.node text.cap { font: 600 12px var(--display); fill: var(--muted); text-anchor: middle }
+.node.ok circle { stroke: var(--good); stroke-width: 4 } .node.ko circle { stroke: var(--bad); stroke-width: 4 }
+.rules circle { fill: var(--ink) } .rules text.code { fill: var(--bg) }
+.rules.ok circle { fill: var(--good) } .rules.ko circle { fill: var(--bad) }
+.bubble rect { fill: var(--panel); stroke: var(--line); stroke-width: 1.5 }
+.bubble.ok rect { stroke: var(--good); stroke-width: 2.5 } .bubble.ko rect { stroke: var(--bad); stroke-width: 2.5 }
+.bubble text { font: 600 12.5px var(--display); fill: var(--ink) }
+.pulse { fill: var(--c) }
+.ringwave { fill: none; stroke: var(--c); stroke-width: 2 }
+
+.apron .ground { fill: var(--apron) }
+.apron .rwy { fill: var(--rwy) }
+.apron .cl { stroke: var(--bg); stroke-width: 2; stroke-dasharray: 14 10 }
+.apron .taxi { stroke: var(--taxi); stroke-width: 3; fill: none }
+.apron .hold { stroke: var(--taxi); stroke-width: 3 }
+.apron .stand { fill: var(--panel); stroke: var(--line); stroke-width: 1.5 }
+.apron .stand.hot { stroke: var(--good); stroke-width: 3 }
+.apron text { font: 700 11px var(--mono); fill: var(--muted); text-anchor: middle }
+.apron .plane { fill: var(--c) } .apron .other { fill: var(--muted); opacity: .75 }
+.apron .wait { font: 800 14px var(--mono); fill: var(--bad); text-anchor: middle }
+.apron .note { font: 700 12px var(--display); fill: var(--sky) }
+
+.log { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; min-height: 120px }
+.log li { display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 8px; font-size: 14px; line-height: 1.4;
+  animation: in .35s ease-out both }
+.log li b { font: 700 13px var(--mono); color: var(--muted); font-variant-numeric: tabular-nums }
+.log li.bad span { color: var(--bad) } .log li.good span { color: var(--good) }
+@keyframes in { from { transform: translateY(8px) } to { transform: none } }
+.outcome { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px }
+.outcome div { border: 1.5px solid var(--c); padding: 10px; display: grid; gap: 2px; animation: in .4s ease-out both }
+.outcome b { font: 800 22px var(--display); color: var(--c); line-height: 1.1 }
+.outcome span { font-size: 12.5px; color: var(--muted) }
+.illus { font-size: 12.5px; color: var(--muted) }
+
+/* sandbox */
+.sandbox { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr)); gap: 18px; align-items: start }
+.panel { background: var(--panel); border: 1px solid var(--line); padding: 18px; display: grid; gap: 14px; min-width: 0 }
+.field { display: grid; gap: 6px }
+.field label { font-weight: 700 }
+.field output { font: 700 14px var(--mono); color: var(--sky) }
+input[type="range"] { width: 100%; accent-color: var(--sky) }
+.gates { display: flex; gap: 8px; flex-wrap: wrap }
+.gates label { border: 1.5px solid var(--line); padding: 6px 12px; border-radius: 6px; cursor: pointer; font: 700 14px var(--mono) }
+.gates input { accent-color: var(--sky) }
+.checks { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px }
+.checks li { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 10px; align-items: start; padding: 10px 12px;
+  border: 1.5px solid var(--line); transition: border-color .25s, background-color .25s }
+.checks li .m { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-weight: 800;
+  color: var(--panel); background: var(--good); transition: background-color .25s, transform .25s }
+.checks li.ko { border-color: var(--bad) } .checks li.ko .m { background: var(--bad); transform: rotate(180deg) }
+.checks li b { display: block } .checks li span { font-size: 14px; color: var(--muted) }
+.verdict { font: 800 20px var(--display); padding: 12px 14px; border-left: 6px solid var(--good); background: var(--bg) }
+.verdict.ko { border-left-color: var(--bad) }
+.hint { font-size: 14px; color: var(--muted); min-height: 1.4em }
+
+/* limits */
+.limits { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 14px }
+.limit { background: var(--panel); border: 1px solid var(--line); padding: 16px 18px; display: grid; gap: 8px;
+  transition: transform .2s, border-color .2s }
+.limit:hover { transform: translateY(-3px); border-color: var(--taxi) }
+.limit .tag { font: 700 11px var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--taxi) }
+.limit p { font-size: 15px; color: var(--muted) }
+.limit p b { color: var(--ink) }
+
+/* figures */
+.figs { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px }
+.fig { background: var(--board); color: var(--flapInk); padding: 16px; display: grid; gap: 6px }
+.fig b { font: 700 34px var(--mono); line-height: 1; font-variant-numeric: tabular-nums }
+.fig span { font-size: 13.5px; color: #B8C3CA }
+footer { font-size: 13px; color: var(--muted); display: grid; gap: 4px }
+footer a { color: var(--sky) }
+
+@media (prefers-reduced-motion: reduce) {
+  .flap.go, .log li, .outcome div { animation: none }
+  .limit, .checks li, .checks li .m { transition: none }
+}
+@media (max-width: 560px) { .outcome { grid-template-columns: 1fr } .board { grid-template-columns: auto 1fr } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <span class="eyebrow">Airbus challenge #2 · one real flight, played twice</span>
+    <h1>Same flight, two evenings</h1>
+    <p class="lede">On the left, tonight’s reality: the tower, the airline and the ramp each check their own rules, by
+      phone, late. On the right, three AI agents negotiate before take-off, fixed rules check every plan, and a human
+      decides.</p>
+    <div class="controls" role="toolbar" aria-label="Playback">
+      <button class="tab" id="tab-mq" role="tab" aria-selected="true">Gate conflict · Envoy 3439</button>
+      <button class="tab" id="tab-wn" role="tab" aria-selected="false">No legal plan · Southwest 1347</button>
+      <button class="tab" id="tab-sin" role="tab" aria-selected="false">What-if · storm at Changi</button>
+      <span class="spacer"></span>
+      <button class="btn primary" id="play">Play</button>
+      <button class="btn" id="replay">Replay</button>
+      <button class="btn" id="speed">Speed 1×</button>
+      <button class="btn" id="skip">Skip to end</button>
+    </div>
+    <div class="glance" id="glance"></div>
+  </header>
+
+  <section class="stage" aria-label="The two evenings">
+    <article class="side" data-side="today"></article>
+    <article class="side" data-side="tool"></article>
+  </section>
+  <p class="illus" id="illus"></p>
+
+  <section style="display:grid;gap:16px" aria-labelledby="h-break">
+    <div style="display:grid;gap:6px">
+      <span class="eyebrow">Try to break it · Envoy 3439 at Dallas</span>
+      <h2 id="h-break">Push the plan around. The rules answer instantly.</h2>
+      <p class="lede">Same limits as the real checker for this flight: 15 minutes of fuel for holding above the 30-minute
+        reserve, 3 NM behind the aircraft ahead, gate G10 busy until 17:29.</p>
+    </div>
+    <div class="sandbox">
+      <form class="panel" id="sand" onsubmit="return false">
+        <div class="field"><label for="hold">Airborne holding before landing</label>
+          <input type="range" id="hold" min="0" max="45" step="1" value="0"><output id="hold-o"></output></div>
+        <div class="field"><label for="gap">Gap behind the aircraft ahead</label>
+          <input type="range" id="gap" min="0.5" max="3" step="0.1" value="1.3"><output id="gap-o"></output></div>
+        <div class="field"><span style="font-weight:700">Gate</span>
+          <div class="gates" role="radiogroup" aria-label="Gate">
+            <label><input type="radio" name="gate" id="g10" value="G10" checked> G10</label>
+            <label><input type="radio" name="gate" id="g12" value="G12"> G12</label>
+            <label><input type="radio" name="gate" id="g14" value="G14"> G14</label>
+          </div></div>
+        <p class="hint" id="hint"></p>
+      </form>
+      <div class="panel">
+        <div class="verdict" id="verdict"></div>
+        <ul class="checks" id="checks"></ul>
+      </div>
+    </div>
+  </section>
+
+  <section style="display:grid;gap:16px" aria-labelledby="h-lim">
+    <div style="display:grid;gap:6px">
+      <span class="eyebrow">Where it stops</span>
+      <h2 id="h-lim">What the prototype does not do yet</h2>
+    </div>
+    <div class="limits">
+      <div class="limit"><span class="tag">Data</span><h3>Airport limits are synthetic</h3>
+        <p>Gates, runways and capacity come from the challenge workbook, scaled from traffic. <b>Fix:</b> one airline’s live gate plan and declared arrival rates.</p></div>
+      <div class="limit"><span class="tag">Weather</span><h3>The storm is my blind spot</h3>
+        <p>Nothing known before take-off forecasts the weather, so weather flights land later than predicted. <b>Fix:</b> plug in a forecast (hello, Challenge #5).</p></div>
+      <div class="limit"><span class="tag">Scale</span><h3>≈18,000 is an estimate</h3>
+        <p>It is 5.1% of one year of challenge data, under the workbook’s limits, not a count of real incidents. <b>Fix:</b> shadow mode on live traffic.</p></div>
+      <div class="limit"><span class="tag">AI</span><h3>The AI varies, the rules don’t</h3>
+        <p>About 1 flight in 10 negotiates differently from one run to the next. Safety never changes: fixed rules decide. <b>Fix:</b> more runs, measured.</p></div>
+      <div class="limit"><span class="tag">Crew</span><h3>Crew rule simplified to 13 hours</h3>
+        <p>The real FAA table allows up to 14 hours in the morning, so some escalations are stricter than life. <b>Fix:</b> real crew pairings.</p></div>
+      <div class="limit"><span class="tag">People</span><h3>A human always signs off</h3>
+        <p>The tool proposes and explains. It never applies a plan, extends a crew’s duty or picks a reserve crew. That stays a person’s job.</p></div>
+    </div>
+  </section>
+
+  <section style="display:grid;gap:16px" aria-labelledby="h-figs">
+    <h2 id="h-figs">In figures</h2>
+    <div class="figs">
+      <div class="fig"><b>≈18,000</b><span>flights in one year of challenge data with a plan that broke a rule (estimate)</span></div>
+      <div class="fig"><b>≈9,000</b><span>with no legal plan at all, flagged before take-off (estimate)</span></div>
+      <div class="fig"><b>0 / 200</b><span>unsafe plans kept, out of every flight that had a legal option</span></div>
+      <div class="fig"><b>1–2</b><span>rounds on average before the three agents agree (never more than 3)</span></div>
+      <div class="fig"><b>4–9¢</b><span>per flight, about 10 seconds</span></div>
+    </div>
+  </section>
+
+  <footer>
+    <p>Times, gates and rule results come from the recorded logs of Envoy 3439 (27 Jun 2015) and Southwest 1347 (24 Jul 2015),
+      2015 US DOT data and the challenge constraints workbook. The “today” timelines are illustrative, built around those real times.
+      The Changi tab is a what-if: no Changi data was used, its times and stand names are invented for illustration.</p>
+    <p>Solo hackathon project, Autonomous SG 2026 · <a href="https://github.com/Marl75/atm-negotiation">github.com/Marl75/atm-negotiation</a></p>
+  </footer>
+</div>
+
+<script>
+(() => {
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const NS = "http://www.w3.org/2000/svg";
+  const hhmm = m => `${String(Math.floor(m / 60) % 24).padStart(2, "0")}:${String(Math.round(m) % 60).padStart(2, "0")}`;
+  const SLOT_X = [90, 220, 350, 480];  // stand positions on the apron, in gate order
+
+  // ---------- scenarios (clock = minutes after midnight; K maps real seconds -> clock) ----------
+  const SC = {
+    mq: {
+      flight: "MQ3439", from: "MOB", to: "DFW", gates: ["G8", "G10", "G12", "G14"], planned: "G10", busy: { G10: 1049 },
+      K: [[0, 860], [2.5, 900], [7.5, 905.5], [12, 990], [17, 1015], [23, 1049], [26, 1060]],
+      glance: [["today", "Today", "34 min waiting on the taxiway for gate G10 · 3 phone calls · nothing written"],
+               ["tool", "With the agents", "0 min waiting · gate changed 1 h 50 before landing · 2 rounds · full record"]],
+      illus: "Envoy 3439, Mobile → Dallas/Fort Worth, 27 June 2015: 45 minutes late because its inbound aircraft was late. Gate G10 is busy until 17:29.",
+      today: [
+        [860, "status", "DELAYED +45", "bad"], [860, "log", "Inbound aircraft late. Departure moves to 15:05.", ""],
+        [905, "log", "Departs. Nobody checks the arrival gate.", ""], [905, "status", "IN FLIGHT", ""],
+        [990, "ring", "TWR", "RAMP", "Arriving 16:55. Gate?"], [990, "log", "Tower calls the ramp: arriving 16:55.", ""],
+        [1001, "ring", "RAMP", "OPS", "G10 busy until 17:29!"], [1001, "log", "Ramp finds G10 busy until 17:29, calls the airline.", "bad"],
+        [1009, "ring", "OPS", "TWR", "Can it hold or slow down?"], [1009, "log", "Airline asks the tower to slow it down: already on approach.", "bad"],
+        [1015, "land", "hold"], [1015, "status", "WAITING GATE", "bad"], [1015, "log", "Lands. Stops on the taxiway, engines running.", "bad"],
+        [1049, "free", "G10"], [1049, "taxi", "G10"], [1049, "gate", "G10"], [1050, "status", "AT GATE", ""],
+        [1050, "log", "G10 is free. Passengers off 34 minutes later.", ""],
+        [1056, "outcome", [["34 min", "on the taxiway"], ["3", "phone calls"], ["0", "lines written"]]],
+      ],
+      tool: [
+        [860, "status", "DELAYED +45", "bad"], [860, "log", "Inbound aircraft late. The three agents open the case.", ""],
+        [901, "round", "Round 1", [["TWR", "Slot on R2, +45: OK", "ok"], ["OPS", "Fuel and crew: OK", "ok"], ["RAMP", "G10 busy till 17:29", "ko"]]],
+        [901.6, "rules", "ko", "Gate check fails"], [901.6, "log", "Round 1: the ramp agent rejects gate G10.", "bad"],
+        [903, "round", "Round 2", [["TWR", "Same slot: OK", "ok"], ["OPS", "Fuel and crew: OK", "ok"], ["RAMP", "Move to G12", "ok"]]],
+        [903.6, "rules", "ok", "Every rule passes"], [903.6, "gate", "G12"], [903.6, "log", "Round 2: G12. Every rule passes.", "good"],
+        [904.6, "super", "Approved 15:05"], [904.6, "log", "Supervisor approves, 1 h 50 before landing.", "good"],
+        [905, "status", "IN FLIGHT", ""], [1015, "land", "G12"], [1017, "status", "AT GATE", "good"],
+        [1017, "log", "Lands and rolls straight to G12.", "good"], [1049, "free", "G10"],
+        [1052, "outcome", [["0 min", "on the taxiway"], ["2", "rounds"], ["Full", "record of every turn"]]],
+      ],
+    },
+    wn: {
+      flight: "WN1347", from: "BWI", to: "FLL", gates: ["G8", "G10", "G12", "G14"], planned: "G8", busy: {},
+      K: [[0, 975], [2.5, 1075], [8, 1081], [12.5, 1200], [17, 1235], [21, 1250], [24, 1260]],
+      glance: [["today", "Today", "Crew 10 min past its 13-hour limit · found after landing · next leg has no legal crew"],
+               ["tool", "With the agents", "No illegal plan · flagged at 18:00, 2 h 25 before the limit · a human decides"]],
+      illus: "Southwest 1347, Baltimore → Fort Lauderdale, 24 July 2015: ready only at 18:00, 105 minutes late. The crew’s 13-hour limit ends at 20:25.",
+      today: [
+        [975, "status", "DELAYED +105", "bad"], [975, "log", "Inbound aircraft late. Departure moves to 18:00.", ""],
+        [1080, "status", "IN FLIGHT", ""], [1080, "log", "Departs. Crew hours not re-checked against the new times.", ""],
+        [1225, "status", "CREW OVER 13H", "bad"], [1225, "log", "20:25: the crew reaches its 13-hour limit, still in the air.", "bad"],
+        [1235, "land", "G8"], [1235, "log", "Lands 10 minutes past the limit.", "bad"],
+        [1240, "ring", "OPS", "RAMP", "Next leg: no legal crew!"], [1240, "status", "NEXT LEG STUCK", "bad"],
+        [1240, "log", "Airline starts hunting for a reserve crew. Next leg waits.", "bad"],
+        [1252, "outcome", [["+10 min", "past the crew limit"], ["After", "landing, when found"], ["Next", "leg stuck"]]],
+      ],
+      tool: [
+        [975, "status", "DELAYED +105", "bad"], [975, "log", "Inbound aircraft late. The three agents open the case.", ""],
+        [1076, "round", "Round 1", [["TWR", "Slot OK", "ok"], ["OPS", "Crew over 13h at 20:35", "ko"], ["RAMP", "G8 free: OK", "ok"]]],
+        [1076.6, "rules", "ko", "Crew check fails"],
+        [1078, "round", "Round 2", [["TWR", "Slot OK", "ok"], ["OPS", "Still over 13h", "ko"], ["RAMP", "G8: OK", "ok"]]],
+        [1078.6, "rules", "ko", "Crew check fails"],
+        [1079.5, "round", "Round 3", [["TWR", "Slot OK", "ok"], ["OPS", "No fix possible", "ko"], ["RAMP", "G8: OK", "ok"]]],
+        [1080, "rules", "ko", "No legal plan"], [1080, "log", "Three rounds, no legal plan: the crew limit cannot be met.", "bad"],
+        [1080.6, "super", "Sent with reason"], [1080.6, "status", "HELD CREW", "bad"],
+        [1080.6, "log", "18:00: sent to the supervisor with the reason. 2 h 25 to arrange a fresh crew.", "good"],
+        [1081, "heldnote", "Held at BWI · supervisor deciding"],
+        [1250, "outcome", [["0", "illegal plans"], ["2 h 25", "warning before the limit"], ["Human", "makes the call"]]],
+      ],
+    },
+    sin: {
+      flight: "WHATIF", from: "BKK", to: "SIN", gates: ["A1", "A3", "A5", "A7"], planned: "A3", busy: { A3: 1240 }, whatif: true,
+      K: [[0, 1020], [2.5, 1021.5], [9, 1027.5], [11, 1055], [15, 1205], [18.5, 1230], [22, 1242], [24, 1250]],
+      glance: [["today", "Today", "25 min circling over Singapore · ≈1,000 kg extra fuel · 10 min waiting for a stand"],
+               ["tool", "With the agents", "Waits 25 min on the ground in Bangkok · no circling · stand changed 3 h 40 ahead"]],
+      illus: "What-if at Changi, not from my data: an evening monsoon storm slows arrivals between 20:00 and 20:40. Times and stand names are illustrative; the rules are the same as in the prototype (15 min of holding fuel, 2.4 t/h burn).",
+      today: [
+        [1020, "status", "ON TIME", ""], [1020, "log", "Storm forecast for Changi, 20:00–20:40. The flight leaves Bangkok on time anyway.", ""],
+        [1030, "status", "IN FLIGHT", ""],
+        [1205, "ring", "TWR", "OPS", "Storm: hold 25 min"], [1205, "status", "HOLDING", "bad"], [1205, "airhold"],
+        [1205, "log", "Approach sends it into a holding pattern over the strait.", "bad"],
+        [1230, "airholdend"], [1230, "land", "hold"], [1230, "status", "WAITING STAND", "bad"],
+        [1230, "log", "Lands after 25 min circling: about 1,000 kg of extra fuel.", "bad"],
+        [1231, "ring", "RAMP", "OPS", "A3 still busy!"], [1231, "log", "Stand A3 is still taken by another late arrival.", "bad"],
+        [1240, "free", "A3"], [1240, "taxi", "A3"], [1240, "gate", "A3"], [1241, "status", "AT GATE", ""],
+        [1241, "log", "A3 frees up 10 minutes later.", ""],
+        [1246, "outcome", [["25 min", "circling in the air"], ["≈1,000 kg", "extra fuel burned"], ["10 min", "waiting for a stand"]]],
+      ],
+      tool: [
+        [1020, "status", "ON TIME", ""], [1020, "log", "Storm forecast for Changi. The three agents open the case.", ""],
+        [1021.5, "round", "Round 1", [["TWR", "Storm: slot +25 min", "ok"], ["OPS", "25 min holding: no fuel", "ko"], ["RAMP", "A3 busy at 20:50", "ko"]]],
+        [1022.2, "rules", "ko", "Fuel and stand fail"], [1022.2, "log", "Round 1: too little fuel to circle 25 min, and A3 is busy.", "bad"],
+        [1025, "round", "Round 2", [["TWR", "Slot +25: OK", "ok"], ["OPS", "Wait on the ground", "ok"], ["RAMP", "Move to A5", "ok"]]],
+        [1025.7, "rules", "ok", "Every rule passes"], [1025.7, "gate", "A5"],
+        [1025.7, "log", "Round 2: wait 25 min on the ground in Bangkok, stand A5.", "good"],
+        [1027, "super", "Approved 17:07"], [1027, "status", "GROUND HOLD", "good"], [1027, "log", "Supervisor approves, 3 h 40 before landing.", "good"],
+        [1055, "status", "IN FLIGHT", ""], [1055, "log", "Departs Bangkok 25 minutes later than planned.", ""],
+        [1230, "land", "A5"], [1232, "status", "AT GATE", "good"], [1232, "log", "Lands 20:50 with no circling, straight to A5.", "good"],
+        [1240, "free", "A3"],
+        [1242, "outcome", [["0 min", "circling in the air"], ["≈1,000 kg", "fuel not burned"], ["0 min", "waiting for a stand"]]],
+      ],
+    },
+  };
+
+  // ---------- time mapping ----------
+  const lerp = (a, b, f) => a + (b - a) * f;
+  function clockAt(K, t) {
+    if (t <= K[0][0]) return K[0][1];
+    for (let i = 1; i < K.length; i++) if (t <= K[i][0]) {
+      const [t0, c0] = K[i - 1], [t1, c1] = K[i]; return lerp(c0, c1, (t - t0) / (t1 - t0)); }
+    return K[K.length - 1][1];
+  }
+  function secAt(K, c) {
+    if (c <= K[0][1]) return K[0][0];
+    for (let i = 1; i < K.length; i++) if (c <= K[i][1]) {
+      const [t0, c0] = K[i - 1], [t1, c1] = K[i]; return lerp(t0, t1, (c - c0) / (c1 - c0)); }
+    return K[K.length - 1][0];
+  }
+
+  // ---------- svg helpers ----------
+  function el(tag, attrs = {}, parent) {
+    const e = document.createElementNS(NS, tag);
+    for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+  const NODES = { TWR: [90, 62, "Tower"], OPS: [300, 44, "Airline"], RAMP: [510, 62, "Ramp"] };
+
+  // ---------- build one side ----------
+  function buildSide(root, which, sc) {
+    root.innerHTML = `
+      <div class="side-head"><h3>${which === "today" ? "Today · the phone tree" : "With the agents"}</h3>
+        <span class="clock">--:--</span></div>
+      <div class="board" aria-label="Departure board">
+        <span class="lbl">Flight</span><div class="flaps" data-f="flight"></div>
+        <span class="lbl">Gate</span><div class="flaps" data-f="gate"></div>
+        <span class="lbl">Route</span><div class="flaps" data-f="route"></div>
+        <span class="lbl">Status</span><div class="flaps" data-f="status" style="grid-column: span 1"></div>
+      </div>
+      <svg class="net" viewBox="0 0 600 ${which === "tool" ? 262 : 200}" role="img"
+        aria-label="${which === "today" ? "Three teams calling each other one by one" : "Three agents, a rules check and the supervisor"}"></svg>
+      <svg class="apron" viewBox="0 0 600 156" role="img" aria-label="Runway, taxiway and gates at the destination"></svg>
+      <ol class="log" aria-live="polite"></ol>
+      <div class="outcome"></div>`;
+    const s = { gx: Object.fromEntries(sc.gates.map((g, i) => [g, SLOT_X[i]])), airFrom: null, root, which, sc, clock: root.querySelector(".clock"), log: root.querySelector(".log"),
+      outcome: root.querySelector(".outcome"), net: root.querySelector(".net"), apron: root.querySelector(".apron"),
+      flaps: {}, waitFrom: null, waitEl: null };
+    for (const [k, n] of [["flight", 6], ["gate", 3], ["route", 7], ["status", 13]]) {
+      const box = root.querySelector(`[data-f="${k}"]`);
+      s.flaps[k] = Array.from({ length: n }, () => { const d = document.createElement("span"); d.className = "flap"; box.appendChild(d); return d; });
+    }
+    setFlaps(s, "flight", sc.flight, "", true); setFlaps(s, "route", `${sc.from}-${sc.to}`, "", true);
+    setFlaps(s, "gate", sc.planned, "", true);
+    setFlaps(s, "status", "SCHEDULED", "", true);
+    drawNet(s); drawApron(s);
+    return s;
+  }
+
+  function setFlaps(s, key, text, tone, instant) {
+    const cells = s.flaps[key], t = text.toUpperCase().padEnd(cells.length).slice(0, cells.length);
+    cells.forEach((c, i) => {
+      const ch = t[i] === " " ? " " : t[i];
+      const apply = () => { c.textContent = ch; c.className = "flap" + (tone ? " " + tone : ""); };
+      if (instant || reduce) return apply();
+      setTimeout(() => { c.classList.remove("go"); void c.offsetWidth; c.classList.add("go"); setTimeout(apply, 120); }, i * 35);
+    });
+  }
+
+  function drawNet(s) {
+    const g = s.net, tool = s.which === "tool";
+    if (tool) {
+      for (const k of Object.keys(NODES)) el("line", { class: "edge", x1: NODES[k][0], y1: NODES[k][1], x2: 300, y2: 150 }, g);
+      el("line", { class: "edge", x1: 300, y1: 150, x2: 300, y2: 222 }, g);
+    } else {
+      const ks = Object.keys(NODES);
+      for (let i = 0; i < 3; i++) { const a = NODES[ks[i]], b = NODES[ks[(i + 1) % 3]];
+        el("line", { class: "edge dash", x1: a[0], y1: a[1], x2: b[0], y2: b[1] }, g); }
+      const t = el("text", { x: 300, y: 150, "text-anchor": "middle", class: "illusText" }, g);
+      t.textContent = "No shared picture: each team checks its own rules";
+      t.setAttribute("style", "font: 600 13px var(--display); fill: var(--muted)");
+    }
+    s.nodes = {};
+    for (const [k, [x, y, cap]] of Object.entries(NODES)) {
+      const n = el("g", { class: "node" }, g);
+      el("circle", { cx: x, cy: y, r: 26 }, n);
+      el("text", { class: "code", x, y }, n).textContent = k;
+      el("text", { class: "cap", x, y: y + 42 }, n).textContent = cap;
+      s.nodes[k] = n;
+    }
+    if (tool) {
+      s.rules = el("g", { class: "node rules" }, g);
+      el("circle", { cx: 300, cy: 150, r: 26 }, s.rules);
+      el("text", { class: "code", x: 300, y: 150 }, s.rules).textContent = "RULES";
+      s.rules.querySelector("text").setAttribute("style", "font-size: 11px");
+      s.sup = el("g", { class: "node" }, g);
+      el("circle", { cx: 300, cy: 222, r: 22 }, s.sup);
+      el("text", { class: "code", x: 300, y: 222 }, s.sup).textContent = "SUP";
+      el("text", { class: "cap", x: 360, y: 226, "text-anchor": "start" }, s.sup).textContent = "Supervisor";
+    }
+  }
+
+  function bubble(s, x, y, text, tone, ttl) {
+    if (ttl && state.skipping) return;
+    const b = el("g", { class: "bubble " + (tone || "") }, s.net);
+    const r = el("rect", { rx: 6, ry: 6 }, b), t = el("text", { x, y }, b);
+    t.textContent = text; t.setAttribute("text-anchor", "middle"); t.setAttribute("dominant-baseline", "central");
+    const w = (t.getComputedTextLength ? t.getComputedTextLength() : text.length * 7) + 18;
+    const cx = Math.min(600 - w / 2 - 2, Math.max(w / 2 + 2, x));
+    t.setAttribute("x", cx);
+    Object.entries({ x: cx - w / 2, y: y - 13, width: w, height: 26 }).forEach(([k, v]) => r.setAttribute(k, v));
+    if (!reduce) b.animate([{ opacity: 0, transform: "translateY(6px)" }, { opacity: 1, transform: "none" }], { duration: 250 });
+    if (ttl) setTimeout(() => b.remove(), ttl);
+    return b;
+  }
+
+  function travel(s, from, to, tone) {
+    if (reduce || state.skipping) return;
+    const dot = el("circle", { r: 6, class: "pulse", cx: 0, cy: 0 }, s.net);
+    dot.animate([{ transform: `translate(${from[0]}px,${from[1]}px)` }, { transform: `translate(${to[0]}px,${to[1]}px)` }],
+      { duration: 650 / state.speed, easing: "ease-in-out", fill: "forwards" }).onfinish = () => dot.remove();
+  }
+
+  function ringNode(s, k) {
+    if (reduce || state.skipping) return;
+    const [x, y] = NODES[k];
+    const w = el("circle", { cx: x, cy: y, r: 26, class: "ringwave" }, s.net);
+    w.animate([{ r: 26, opacity: 1 }, { r: 48, opacity: 0 }], { duration: 700 / state.speed, iterations: 3 }).onfinish = () => w.remove();
+  }
+
+  function drawApron(s) {
+    const a = s.apron;
+    el("rect", { class: "ground", x: 0, y: 0, width: 600, height: 156 }, a);
+    el("rect", { class: "rwy", x: 16, y: 10, width: 568, height: 22, rx: 2 }, a);
+    el("line", { class: "cl", x1: 26, y1: 21, x2: 574, y2: 21 }, a);
+    el("text", { x: 46, y: 46 }, a).textContent = "RUNWAY";
+    el("path", { class: "taxi", d: "M540 32 V72 H60" }, a);
+    el("line", { class: "hold", x1: 300, y1: 62, x2: 300, y2: 82 }, a);
+    el("line", { class: "hold", x1: 308, y1: 62, x2: 308, y2: 82 }, a);
+    s.stands = {};
+    for (const g of s.sc.gates) {
+      const x = s.gx[g];
+      el("path", { class: "taxi", d: `M${x} 72 V112`, style: "stroke-width:2; opacity:.7" }, a);
+      s.stands[g] = el("rect", { class: "stand", x: x - 26, y: 112, width: 52, height: 38, rx: 3 }, a);
+      el("text", { x, y: 105 }, a).textContent = g;
+    }
+    s.others = {};
+    for (const [g] of Object.entries(s.sc.busy)) s.others[g] = planeGlyph(a, s.gx[g], 131, 180, "other");
+    s.plane = planeGlyph(a, 30, 21, 90, "plane"); s.plane.style.opacity = 0;
+    s.waitEl = el("text", { class: "wait", x: 452, y: 60 }, a);
+    s.note = el("text", { class: "note", x: 190, y: 60, "text-anchor": "middle" }, a);
+  }
+
+  function planeGlyph(parent, x, y, rot, cls) {
+    const g = el("g", { class: cls, transform: `translate(${x} ${y}) rotate(${rot})` }, parent);
+    el("path", { d: "M0,-12 L2.4,-4 L12,1 L12,3.6 L2.4,1.4 L1.4,8 L5,10.6 L5,12 L0,10.8 L-5,12 L-5,10.6 L-1.4,8 L-2.4,1.4 L-12,3.6 L-12,1 L-2.4,-4 Z" }, g);
+    g.dataset.x = x; g.dataset.y = y; g.dataset.r = rot;
+    return g;
+  }
+
+  function movePlane(s, pts) {
+    const p = s.plane; p.style.opacity = 1;
+    let [x, y] = [+p.dataset.x, +p.dataset.y];
+    const frames = [{ x, y, r: +p.dataset.r }];
+    for (const [nx, ny] of pts) { const r = Math.atan2(nx - x, -(ny - y)) * 180 / Math.PI;
+      frames.push({ x, y, r }, { x: nx, y: ny, r }); [x, y] = [nx, ny]; }
+    const last = frames[frames.length - 1];
+    const set = f => p.setAttribute("transform", `translate(${f.x} ${f.y}) rotate(${f.r})`);
+    p.dataset.x = last.x; p.dataset.y = last.y; p.dataset.r = last.r;
+    if (reduce || state.skipping) return set(last);
+    const dur = 1700 / state.speed, start = performance.now(), n = frames.length - 1;
+    const step = now => {
+      const f = Math.min(1, (now - start) / dur), i = Math.min(n - 1, Math.floor(f * n)), k = f * n - i;
+      const a = frames[i], b = frames[i + 1];
+      set({ x: lerp(a.x, b.x, k), y: lerp(a.y, b.y, k), r: lerp(a.r, b.r, k) });
+      if (f < 1 && state.alive === s.token) requestAnimationFrame(step); else set(last);
+    };
+    requestAnimationFrame(step);
+  }
+
+  // ---------- events ----------
+  function run(s, e, clock) {
+    const [, kind, ...a] = e;
+    if (kind === "log") {
+      const li = document.createElement("li"); if (a[1]) li.className = a[1];
+      li.innerHTML = `<b>${hhmm(clock)}</b><span></span>`; li.querySelector("span").textContent = a[0];
+      s.log.appendChild(li);
+    } else if (kind === "status") setFlaps(s, "status", a[0], a[1]);
+    else if (kind === "gate") { setFlaps(s, "gate", a[0], "good"); Object.values(s.stands).forEach(r => r.classList.remove("hot")); s.stands[a[0]]?.classList.add("hot"); }
+    else if (kind === "ring") {
+      ringNode(s, a[0]); travel(s, NODES[a[0]], NODES[a[1]]);
+      const [x, y] = NODES[a[1]]; bubble(s, x, y + 70, a[2], "ko", 2600 / state.speed);
+    } else if (kind === "round") {
+      bubble(s, 300, 108, a[0], "", 1400 / state.speed);
+      for (const [k, msg, tone] of a[1]) {
+        const [x, y] = NODES[k]; travel(s, [x, y], [300, 150]);
+        s.nodes[k].classList.remove("ok", "ko"); s.nodes[k].classList.add(tone);
+        bubble(s, x, y + 68, msg, tone, 1500 / state.speed);
+      }
+    } else if (kind === "rules") { s.rules.classList.remove("ok", "ko"); s.rules.classList.add(a[0]); bubble(s, 300, 188, a[1], a[0], 1400 / state.speed); }
+    else if (kind === "super") { s.sup.classList.add("ok"); travel(s, [300, 150], [300, 222]); bubble(s, 430, 248, a[0], "ok"); }
+    else if (kind === "land") {
+      if (a[0] === "hold") { movePlane(s, [[540, 21], [540, 72], [320, 72]]); s.waitFrom = clock; }
+      else { const gx = s.gx[a[0]]; movePlane(s, [[540, 21], [540, 72], [gx, 72], [gx, 131]]); }
+    } else if (kind === "taxi") { const gx = s.gx[a[0]]; s.waitEl.textContent = `+${Math.round(clock - s.waitFrom)} min waited`; s.waitFrom = null;
+      movePlane(s, [[gx, 72], [gx, 131]]); }
+    else if (kind === "free") { const o = s.others[a[0]]; if (o) { if (reduce) o.remove(); else o.animate([{ opacity: .75 }, { opacity: 0 }], { duration: 600, fill: "forwards" }); } }
+    else if (kind === "heldnote") s.note.textContent = a[0];
+    else if (kind === "airhold") s.airFrom = clock;
+    else if (kind === "airholdend") { s.note.textContent = `Circled ${Math.round(clock - s.airFrom)} min in the air`; s.airFrom = null; }
+    else if (kind === "outcome") {
+      s.outcome.innerHTML = a[0].map(([b, t]) => `<div><b></b><span></span></div>`).join("");
+      [...s.outcome.children].forEach((d, i) => { d.querySelector("b").textContent = a[0][i][0]; d.querySelector("span").textContent = a[0][i][1]; });
+    }
+  }
+
+  // ---------- playback ----------
+  const state = { key: "mq", t: 0, playing: false, speed: 1, last: 0, sides: [], alive: 0 };
+  const $ = id => document.getElementById(id);
+
+  function reset(key) {
+    state.key = key; state.t = 0; state.alive++;
+    const sc = SC[key];
+    state.sides = [...document.querySelectorAll(".side")].map(root => {
+      const s = buildSide(root, root.dataset.side, sc); s.token = state.alive;
+      s.queue = sc[root.dataset.side].map(e => ({ e, at: secAt(sc.K, e[0]), done: false }));
+      return s;
+    });
+    $("glance").innerHTML = sc.glance.map(([c, k, v]) => `<div class="${c}"><span class="k">${k}</span><span>${v}</span></div>`).join("");
+    $("illus").textContent = sc.illus + (sc.whatif ? " Both sides are illustrative." : " Left: illustrative status quo. Right: the recorded negotiation.");
+    for (const k of Object.keys(SC)) $("tab-" + k).setAttribute("aria-selected", key === k);
+    tick(0);
+  }
+
+  function tick(t) {
+    const sc = SC[state.key], clock = clockAt(sc.K, t);
+    for (const s of state.sides) {
+      s.clock.textContent = hhmm(clock);
+      for (const q of s.queue) if (!q.done && q.at <= t) { q.done = true; run(s, q.e, q.e[0]); }
+      if (s.waitFrom != null) s.waitEl.textContent = `WAITING +${Math.max(0, Math.round(clock - s.waitFrom))} min`;
+      if (s.airFrom != null) s.note.textContent = `Circling in the air +${Math.max(0, Math.round(clock - s.airFrom))} min`;
+    }
+  }
+
+  function frame(now) {
+    if (!state.playing) return;
+    const dt = Math.min(0.1, (now - state.last) / 1000); state.last = now;
+    state.t += dt * state.speed; tick(state.t);
+    const end = SC[state.key].K.at(-1)[0];
+    if (state.t >= end) { state.playing = false; $("play").textContent = "Play"; return; }
+    requestAnimationFrame(frame);
+  }
+  function play() {
+    if (state.t >= SC[state.key].K.at(-1)[0]) reset(state.key);
+    state.playing = true; state.last = performance.now(); $("play").textContent = "Pause"; requestAnimationFrame(frame);
+  }
+  function pause() { state.playing = false; $("play").textContent = "Play"; }
+  function showEnd() { const end = SC[state.key].K.at(-1)[0]; state.t = end; state.skipping = true; tick(end); state.skipping = false;
+    for (const s of state.sides) Object.values(s.others).forEach(o => { if (s.queue.some(q => q.e[1] === "free")) o.remove(); }); }
+
+  $("play").onclick = () => state.playing ? pause() : play();
+  $("replay").onclick = () => { pause(); reset(state.key); play(); };
+  $("skip").onclick = () => { pause(); showEnd(); };
+  $("speed").onclick = () => { state.speed = state.speed === 1 ? 2 : 1; $("speed").textContent = `Speed ${state.speed}×`; };
+  $("tab-mq").onclick = () => { pause(); reset("mq"); reduce ? showEnd() : play(); };
+  $("tab-wn").onclick = () => { pause(); reset("wn"); reduce ? showEnd() : play(); };
+  $("tab-sin").onclick = () => { pause(); reset("sin"); reduce ? showEnd() : play(); };
+
+  reset("mq");
+  if (reduce) showEnd(); else setTimeout(play, 600);
+
+  // ---------- try to break it (same limits as the real checker for MQ3439) ----------
+  const ARR = 16 * 60 + 55, G10_FREE = 17 * 60 + 29, DECIDED = 15 * 60 + 5, CREW_END = 24 * 60 + 5;
+  function check() {
+    const hold = +$("hold").value, gap = +$("gap").value, gate = document.querySelector('input[name="gate"]:checked').value;
+    const arr = ARR + hold, nm = gap * 140 / 60;
+    $("hold-o").textContent = `${hold} min · lands ${hhmm(arr)}`;
+    $("gap-o").textContent = `${gap.toFixed(1)} min = ${nm.toFixed(1)} NM at 140 kt`;
+    const rows = [
+      ["Spacing behind the aircraft ahead", nm >= 3, `${nm.toFixed(1)} NM, minimum 3 NM (FAA wake rule in the workbook)`],
+      ["Fuel reserve", hold <= 15, `${hold} min of holding, only 15 min of fuel above the 30-min reserve`],
+      ["Gate free on arrival", gate !== "G10" || arr >= G10_FREE, gate === "G10" ? (arr >= G10_FREE ? `G10 free from 17:29, landing ${hhmm(arr)}` : `G10 busy until 17:29, landing ${hhmm(arr)}`) : `${gate} free at ${hhmm(arr)}`],
+      ["Gate change notice", gate === "G10" || arr - DECIDED >= 20, gate === "G10" ? "No gate change" : `Decided at 15:05, ${arr - DECIDED} min before landing (minimum 20)`],
+      ["Crew duty", arr <= CREW_END, `Block-in ${hhmm(arr)}, crew limit 00:05`],
+    ];
+    $("checks").innerHTML = rows.map(([t, ok, d]) => `<li class="${ok ? "ok" : "ko"}"><span class="m">${ok ? "✓" : "✗"}</span><div><b></b><span></span></div></li>`).join("");
+    [...$("checks").children].forEach((li, i) => { li.querySelector("b").textContent = rows[i][0]; li.querySelector(":scope > div > span").textContent = rows[i][2]; });
+    const broken = rows.filter(r => !r[1]).length, v = $("verdict");
+    v.textContent = broken ? `Refused: ${broken} rule${broken > 1 ? "s" : ""} broken` : "Legal: the supervisor can approve";
+    v.className = "verdict" + (broken ? " ko" : "");
+    $("hint").textContent = gate === "G10" && hold >= 34 ? "You waited in the air for G10: the gate is free, but the fuel is not there."
+      : gate === "G10" && !broken ? "" : gate === "G10" ? "G10 is busy when you land. Try another gate, or wait in the air and watch the fuel."
+      : !broken ? "That is what the agents found: same slot, a free gate, no holding." : "";
+  }
+  ["hold", "gap", "g10", "g12", "g14"].forEach(id => $(id).addEventListener("input", check));
+  check();
+})();
+</script>
