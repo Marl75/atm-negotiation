@@ -34,6 +34,12 @@ def negotiate(scenario: Disruption, context: OpsContext, initial: Proposal, agen
 
         # Consensus = every agent accepts AND no hard (safety) constraint fails. Soft failures are logged.
         if all(e.accept for e in evaluations) and hard_ok(checks):
+            upgrade = ground_hold_upgrade(scenario, context, proposal)
+            if upgrade and rnd < MAX_ROUNDS:  # agreed plan still flies holding: put the ground hold to a vote
+                proposal, proposer, turns[-1].next_selection = upgrade
+                continue
+            if upgrade:
+                turns[-1].next_selection = "ground-hold variant better but no round left: consensus kept"
             return _finish(Outcome(scenario=scenario, context=context, turns=turns, consensus=True,
                                    final=proposal, resolved_by="consensus"))
 
@@ -55,6 +61,21 @@ def score(scenario: Disruption, context: OpsContext, p: Proposal) -> tuple[int, 
     checks = check_all(scenario, context, p)
     return (sum(not c.passed for c in checks if c.hard), sum(not c.passed for c in checks if not c.hard),
             p.holding_min, p.revised_arrival_delay_min)
+
+
+def ground_hold_upgrade(scenario: Disruption, context: OpsContext,
+                        agreed: Proposal) -> tuple[Proposal, str, str] | None:
+    """A consensus that still flies airborne holding: same plan with the holding moved to a ground hold at origin,
+    if the rules score it strictly better. Deterministic, so it does not depend on an agent thinking of it (AA204)."""
+    if agreed.holding_min == 0:
+        return None
+    variant = agreed.model_copy(update={
+        "holding_min": 0,
+        "rationale": f"{agreed.rationale} | {agreed.holding_min} min airborne holding moved to a ground hold at origin"})
+    before, after = score(scenario, context, agreed), score(scenario, context, variant)
+    if after >= before:
+        return None
+    return variant, "GROUND_HOLD<consensus", f"consensus {before} upgraded to ground hold {after}, put to a vote"
 
 
 def merge_counters(current: Proposal, evaluations: list[Evaluation]) -> Proposal | None:

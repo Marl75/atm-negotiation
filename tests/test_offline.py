@@ -173,3 +173,28 @@ def test_merge_ignores_changes_outside_own_levers():
     evs = [_ev(Role.GROUND, gate="G2", holding_min=0), _ev(Role.PILOT, gate="G3", holding_min=5)]
     merged = merge_counters(current, evs)
     assert merged.gate == "G2" and merged.holding_min == 5
+
+
+class _AcceptAll:
+    def __init__(self, role): self.role = role
+    def evaluate(self, s, c, p, history=""): return Evaluation(role=self.role, accept=True)
+
+
+def test_consensus_with_holding_is_upgraded_to_ground_hold():
+    # AA204: all agents accepted 8 min airborne holding at round 1; the ground-hold variant must be put to a vote
+    from atm.negotiation import negotiate
+
+    out = negotiate(S, C, _p(revised_arrival_delay_min=33, holding_min=8), [_AcceptAll(r) for r in Role])
+    assert out.consensus and out.final.holding_min == 0 and out.final.revised_arrival_delay_min == 33
+    assert len(out.turns) == 2 and out.turns[1].proposed_by == "GROUND_HOLD<consensus"
+    assert "upgraded to ground hold" in out.turns[0].next_selection
+
+
+def test_no_upgrade_without_holding_or_round_left(monkeypatch):
+    from atm import negotiation
+
+    out = negotiation.negotiate(S, C, _p(), [_AcceptAll(r) for r in Role])
+    assert len(out.turns) == 1 and out.turns[0].next_selection is None
+    monkeypatch.setattr(negotiation, "MAX_ROUNDS", 1)
+    out = negotiation.negotiate(S, C, _p(revised_arrival_delay_min=33, holding_min=8), [_AcceptAll(r) for r in Role])
+    assert out.final.holding_min == 8 and "no round left" in out.turns[0].next_selection
