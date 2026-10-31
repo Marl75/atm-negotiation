@@ -57,7 +57,7 @@ offline tests, no API cost), uv. Data: DOT 2015 `flights.csv` (provided), challe
 registry.
 
 ## Links to fill in
-- Repository: `https://github.com/<you>/<repo>`
+- Repository: https://github.com/Marl75/atm-negotiation
 - Pitch script: https://claude.ai/artifact/EoRVEkVsGTZEc91nQ1Zjq9 (share it first)
 - Adoption page: https://claude.ai/artifact/SgUFqbSEUWMSdPyVgEVJch (share it first)
 - Deviations slide: https://claude.ai/artifact/7cLRCpXndiGV9hRumHaTg2 (share it first)
