@@ -187,6 +187,11 @@ details.more summary::before { content: "▸ "; } details.more[open] summary::be
 .check .fixed { font-size: 9.5px; font-weight: 700; color: var(--ok); letter-spacing: .04em; }
 .check .tip { display: none; position: absolute; z-index: 10; left: 0; right: -40px; top: calc(100% + 6px); background: var(--panel); border: 1px solid var(--line-2); border-radius: 10px; padding: 10px 12px; box-shadow: 0 12px 30px rgba(0,0,0,.35); cursor: auto; min-width: 260px; }
 .check:hover .tip, .check:focus .tip, .check:focus-within .tip { display: block; }
+/* each .check and each .step has an animation, hence its own stacking context: lift the hovered one (and its step)
+   above the cards and steps painted after it, so the tip is not hidden under them */
+.check:hover, .check:focus, .check:focus-within { z-index: 20; }
+.step.shown { position: relative; }
+.step.shown:hover, .step.shown:focus-within { z-index: 15; }
 .tip .d { font-family: var(--mono); font-size: 12px; margin-bottom: 7px; }
 .tip .s { font-size: 11.5px; color: var(--muted); }
 .tip .s b { color: var(--text); font-weight: 600; }
