@@ -173,6 +173,8 @@ def main() -> None:
                    help="prev_leg: no LATE_AIRCRAFT_DELAY leak; stress: status quo unsafe or holding (rules screen)")
     e.add_argument("--samples", type=int, default=1, help="disjoint samples of --n flights, run one after another")
     e.add_argument("--max-cost", type=float, help="USD cap per sample; flights beyond it are not run")
+    rep = sub.add_parser("eval-report", help="aggregate several eval runs (markdown), no LLM")
+    rep.add_argument("dirs", nargs="+", help="eval/<run>/ folders, e.g. eval/*_prev_leg_s0-*")
     a = sub.add_parser("audit", help="status quo vs rules on many flights, no LLM")
     a.add_argument("--n", type=int, default=10_000)
     a.add_argument("--seed", type=int, default=0)
@@ -181,7 +183,10 @@ def main() -> None:
     a.add_argument("--planned-gate", choices=["first", "random"], default="first")
     sub.add_parser("calibrate", help="refit the turnaround and compare prediction models (temporal split, no LLM)")
     args = ap.parse_args()
-    if args.cmd == "calibrate":
+    if args.cmd == "eval-report":
+        from .evaluate import aggregate
+        sys.stdout.write(aggregate(args.dirs) + "\n")
+    elif args.cmd == "calibrate":
         calibrate()
     elif args.cmd == "check":
         check()

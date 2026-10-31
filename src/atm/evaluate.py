@@ -220,3 +220,33 @@ def run_eval(flights: pd.DataFrame, n: int = 20, seed: int = 0, workers: int = 4
     (out / "summary.md").write_text(
         f"# Eval n={len(rows)} seed={seed} {tag}\n\n" + "\n".join(f"- **{k}**: {v}" for k, v in summary.items()) + "\n")
     return df, summary, out
+
+
+REPORT_KEYS = ["cases", "errors", "consensus_rate", "mean_rounds", "final_solutions_safe_when_solvable",
+               "escalated_to_human_no_safe_option", "status_quo_unsafe", "agent_unsafe_accepts_caught",
+               "mean_holding_status_quo", "mean_holding_negotiated", "mean_holding_fallback",
+               "mean_delay_negotiated", "mean_soft_fails_negotiated", "mean_soft_fails_fallback",
+               "final_author_share", "slot_model_MAE_vs_real_arrival_min", "slot_exact_match_share",
+               "next_leg_cases", "next_leg_delay_MAE_min", "mean_latency_s"]
+
+
+def aggregate(dirs: list) -> str:
+    """Markdown report over several eval runs (disjoint samples): one column per sample, then all pooled."""
+    import re
+    from pathlib import Path
+
+    dfs, cols, costs = [], [], []
+    for d in map(Path, dirs):
+        df = pd.read_csv(d / "results.csv")
+        dfs.append(df)
+        cols.append(summarize(df))
+        m = re.search(r"cost_usd\*\*: ([0-9.]+)", (d / "summary.md").read_text())
+        costs.append(float(m.group(1)) if m else float("nan"))
+    pooled = summarize(pd.concat(dfs, ignore_index=True))
+    fmt = lambda v: "—" if v is None else str(v)
+    head = "| metric | " + " | ".join(f"sample {i + 1}" for i in range(len(cols))) + " | **pooled** |"
+    lines = [head, "|" + "---|" * (len(cols) + 2)]
+    for k in REPORT_KEYS:
+        lines.append(f"| {k} | " + " | ".join(fmt(c.get(k)) for c in cols) + f" | **{fmt(pooled.get(k))}** |")
+    lines.append("| cost_usd | " + " | ".join(f"{c:.2f}" for c in costs) + f" | **{sum(costs):.2f}** |")
+    return "\n".join(lines)
