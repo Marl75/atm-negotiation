@@ -76,7 +76,7 @@ Chaque contrôle du log porte `hard` (sécurité, non négociable) ou soft (coû
 | `flight_crew_duty` | Pilote | hard | REGULATORY | **14 CFR 117 Table B** : service max selon l'heure de prise de service et le nombre d'étapes. Prise de service = 1 h avant le premier départ de l'avion ce jour-là dans le fichier (hypothèse : l'équipage suit l'avion). Au-delà : un humain décide (extension 117.19 ≤ 2 h ou équipage de réserve) |
 | `gate_available` | Sol | hard | DATA | 4 portes par compagnie (hypothèse) ; les arrivées de la même compagnie séquencées avant nous occupent une porte pendant une rotation |
 | `crew_shift` | Sol | soft | ASSUMPTION | Fin de service équipe au sol 23:00 (simulé) |
-| `turnaround_next_leg` | Sol | soft | DATA | Prochain départ du même `TAIL_NUMBER` le même jour ; rotation mini 35 min (hypothèse) |
+| `turnaround_next_leg` | Sol | soft | DATA | Prochain départ du même `TAIL_NUMBER` le même jour ; rotation calibrée par compagnie (médiane observée, janv.–juin 2015) |
 
 Supprimé de la v0 : `max_holding` (pas de limite réglementaire, c'est le carburant qui limite) et `crew_overtime` sur le retard total (faux : dépend de l'heure d'arrivée vs fin de service).
 
@@ -93,8 +93,8 @@ Conséquence pour l'évaluation : quand on compare à la réalité une propositi
 y entrer ; les comparaisons faites sur le créneau et le solveur, elles, n'en dépendent pas.
 
 Ce que les règles utilisent à la place :
-- **Retard de l'avion entrant** : vol précédent du même avion (même immatriculation) arrivé en retard + 35 min de
-  rotation (40 % des lignes). Sinon `LATE_AIRCRAFT_DELAY` sert d'approximation de l'heure d'arrivée prévue de l'avion
+- **Retard de l'avion entrant** : vol précédent du même avion (même immatriculation) arrivé en retard + rotation
+  **calibrée par compagnie** (27 min Hawaiian → 54 min United, voir « Calibration ») (40 % des lignes). Sinon `LATE_AIRCRAFT_DELAY` sert d'approximation de l'heure d'arrivée prévue de l'avion
   entrant, et c'est signalé dans le log.
 - **Créneau d'atterrissage** : file d'arrivée reconstituée à partir des autres vols du fichier, espacés selon le
   sillage FAA. Le trafic à l'heure, absent du fichier, charge chaque piste à 70 % (hypothèse, à caler sur les débits
@@ -180,24 +180,52 @@ Tirage aléatoire de 10 000 vols perturbés (seed 0), ~1 min, 0 $. Pour chaque v
 enfreint-il une règle *hard* ? Intervalles de confiance à 95 % (Wilson). Sensibilité : 4 ou 8 portes par compagnie,
 porte prévue G1 ou tirée au hasard.
 
-| Mesure | Hypothèse par défaut (4 portes, G1) | Plage sur les 4 variantes |
+Chiffres avec la rotation calibrée par compagnie (avant calibration, rotation fixe 35 min, entre parenthèses).
+
+| Mesure | Hypothèse par défaut (4 portes, G1) | Plage (4 portes G1 → 8 portes au hasard) |
 |---|---|---|
-| Plan sans coordination qui enfreint une règle de sécurité | 16,0 % [15,3–16,8] | **9,3 % → 16,0 %** |
-| dont porte occupée | 13,8 % | 6,7 % → 13,8 % |
-| dont temps de service équipage (FAA Part 117) dépassé | **2,4 %** [2,1–2,8] | identique |
-| dont réserve carburant entamée | **0,5 %** [0,4–0,7] | identique |
-| Aucun plan sûr, escalade vers un humain | 2,9 % [2,6–3,2] | 2,5 → 2,9 % |
+| Plan sans coordination qui enfreint une règle de sécurité | 18,1 % [17,3–18,8] (16,0 %) | **10,4 % → 18,1 %** (9,3 → 16,0 %) |
+| dont porte occupée | 15,7 % (13,8 %) | 7,7 % → 15,7 % |
+| dont temps de service équipage (FAA Part 117) dépassé | **2,7 %** [2,4–3,0] (2,4 %) | identique |
+| dont réserve carburant entamée | **0,5 %** [0,4–0,7] (0,5 %) | identique |
+| Aucun plan sûr, escalade vers un humain | 3,4 % [3,0–3,7] (2,9 %) | 2,8 → 3,4 % |
 | Vols avec attente en vol | 4,2 % (médiane 4 min) | identique |
-| Carburant économisé par le solveur | moyenne 17 kg/vol, **médiane 0** | ≈ identique |
+| Carburant économisé par le solveur | moyenne 16 kg/vol, **médiane 0** | ≈ identique |
+
+La rotation réelle étant plus longue que 35 min pour la plupart des compagnies, les avions sont prêts plus tard et les
+portes restent occupées plus longtemps : les conflits montent, l'équipage atteint sa limite plus souvent.
 
 **Lecture honnête**
 - **Chiffre défendable : ~3 %** des vols perturbés avaient un plan non coordonné qui violait une règle FAA de temps de
-  service ou de carburant, indépendamment des hypothèses de portes. Le temps de service repose sur l'hypothèse
+  service (2,7 %) ou de carburant (0,5 %), indépendamment des hypothèses de portes. Le temps de service repose sur l'hypothèse
   « l'équipage suit l'avion » (changement d'équipage supposé là où l'horaire dépasserait déjà la limite).
 - **Conflits de porte : pas annonçables en l'état.** Ils se divisent presque par deux entre 4 et 8 portes, et se
   concentrent sur les hubs (ATL 38 %, DFW 36 %, ORD 30 %) — justement là où « 4 portes par compagnie » est le plus faux
   (Delta a plus de 100 portes à ATL). Le choix G1 ne pèse presque pas (−1,5 point en tirage aléatoire).
 - **L'attente en vol n'est pas le problème** sur ces données (4 % des vols, gain carburant médian nul).
+
+## Calibration des prédictions (`atm calibrate`, sans LLM)
+Ajustement sur **janvier–juin 2015**, test sur **juillet–décembre** (séparation dans le temps), uniquement sur les
+lignes dont le retard entrant vient du vol précédent (pas de fuite) : 83 171 lignes d'ajustement, 60 542 de test.
+
+| Modèle (sur les mois de test) | Erreur retard départ | Biais départ | Erreur retard arrivée | Arrivée à ±15 min |
+|---|---|---|---|---|
+| M0 rotation fixe 35 min (avant) | 16,7 min | −12,2 | 18,8 min | 62,8 % |
+| **M1 rotation par compagnie (adopté)** | **14,0 min (−16 %)** | **−7,6** | 18,5 min | 61,9 % |
+| M2 = M1 + retard résiduel historique compagnie × aéroport × heure | 13,3 min | −6,4 | 18,3 min | 60,7 % |
+| M3 = M2 + médiane historique côté arrivée | 13,3 min | −6,4 | 17,8 min | 65,1 % |
+
+- **Rotation par compagnie** = médiane du temps entre l'atterrissage de l'avion entrant et notre départ réel, quand
+  le départ attend l'avion (`LATE_AIRCRAFT_DELAY > 0`) : de 27 min (HA) à 54 min (UA). Utilisée pour l'heure où
+  l'avion est prêt, l'occupation des portes et le contrôle de rotation. Valeurs figées dans `calibration.py`, un test
+  vérifie qu'elles correspondent à un nouvel ajustement.
+- **M2 / M3 mesurés, pas adoptés** : gains faibles (−0,7 min au départ, −0,7 min à l'arrivée) pour un modèle moins
+  explicable, fait de moyennes historiques.
+- **Ce qui reste imprévisible avant le départ** : en moyenne 14,6 min de retard au départ ne viennent pas de l'avion
+  entrant (compagnie, système, météo au départ). Côté arrivée, la marge de l'horaire absorbe la file (−3 min en
+  moyenne), donc la charge de fond à 70 % **ne peut pas être calibrée avec ces données** : il faudrait les débits FAA ASPM.
+- L'éval LLM tire des vols sur toute l'année, y compris les mois d'ajustement : 14 valeurs de rotation seulement, le
+  risque de sur-ajustement est faible, mais il existe.
 
 ## Démarrage
 ```bash
@@ -207,6 +235,7 @@ uv run pytest             # tests hors ligne (agents factices, aucun coût)
 uv run atm run --row 0    # une négociation (appelle l'API)
 uv run atm eval --n 20    # banc d'éval (~0,05 $ par vol)
 uv run atm audit --n 10000 --gates 4 --planned-gate first   # audit du statu quo, sans LLM, 0 $
+uv run atm calibrate      # recalibre la rotation et compare les modèles de prédiction, 0 $
 ```
 
 ## TODO
