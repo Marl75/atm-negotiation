@@ -13,6 +13,8 @@ USECOLS = [
     "YEAR", "MONTH", "DAY", "AIRLINE", "FLIGHT_NUMBER", "TAIL_NUMBER",
     "ORIGIN_AIRPORT", "DESTINATION_AIRPORT", "SCHEDULED_DEPARTURE", "SCHEDULED_ARRIVAL",
     "DISTANCE", "WEATHER_DELAY", "LATE_AIRCRAFT_DELAY", "AIR_SYSTEM_DELAY",
+    # Realised outcomes: evaluation baseline only, never passed to the agents (not in Disruption)
+    "ARRIVAL_DELAY", "DEPARTURE_DELAY",
 ]
 
 
@@ -37,8 +39,11 @@ def load_disruptions(nrows: int | None = None) -> pd.DataFrame:
     return disruptions(load_flights(nrows))
 
 
-def next_departure_same_tail(df_all: pd.DataFrame, row: pd.Series) -> str | None:
-    """Next scheduled departure of the same aircraft that day, from the destination airport."""
+def next_leg(df_all: pd.DataFrame, row: pd.Series) -> pd.Series | None:
+    """Next leg of the same aircraft that day, from the destination airport.
+
+    The provided file only keeps disrupted flights, so the next leg is missing whenever it was on time.
+    """
     if not isinstance(row["TAIL_NUMBER"], str):
         return None
     same = df_all[(df_all["TAIL_NUMBER"] == row["TAIL_NUMBER"]) & (df_all["YEAR"] == row["YEAR"])
@@ -47,7 +52,12 @@ def next_departure_same_tail(df_all: pd.DataFrame, row: pd.Series) -> str | None
                   & (df_all["SCHEDULED_DEPARTURE"] > row["SCHEDULED_ARRIVAL"])]
     if same.empty:
         return None
-    return _hhmm(same["SCHEDULED_DEPARTURE"].min())
+    return same.sort_values("SCHEDULED_DEPARTURE").iloc[0]
+
+
+def next_departure_same_tail(df_all: pd.DataFrame, row: pd.Series) -> str | None:
+    leg = next_leg(df_all, row)
+    return None if leg is None else _hhmm(leg["SCHEDULED_DEPARTURE"])
 
 
 def _hhmm(v) -> str:

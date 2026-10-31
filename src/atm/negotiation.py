@@ -11,8 +11,14 @@ from .fallback import deterministic_resolution
 from .protocol import Disruption, Evaluation, OpsContext, Outcome, Proposal, Role, Turn
 
 
-def negotiate(scenario: Disruption, context: OpsContext, initial: Proposal) -> Outcome:
-    agents = [ATCAgent(), PilotAgent(), GroundAgent()]
+def naive_initial(context: OpsContext) -> Proposal:
+    """ATC's unilateral first offer (first runway / gate, short gap, no coordination). Also the status-quo baseline."""
+    return Proposal(revised_arrival_delay_min=context.earliest_arrival_delay_min, holding_min=15, slot_gap_min=1.5,
+                    runway=context.runways[0], gate=context.gates[0], rationale="initial ATC slot")
+
+
+def negotiate(scenario: Disruption, context: OpsContext, initial: Proposal, agents: list | None = None) -> Outcome:
+    agents = agents or [ATCAgent(), PilotAgent(), GroundAgent()]  # injectable for offline tests
     proposal, proposer, turns = initial, "ATC", []
 
     for rnd in range(1, MAX_ROUNDS + 1):

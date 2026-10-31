@@ -24,18 +24,23 @@ def check() -> None:
 def run(row: int) -> None:
     from .context import build_context
     from .data import disruptions, load_flights, next_departure_same_tail, row_to_disruption
-    from .negotiation import negotiate
-    from .protocol import Proposal
+    from .negotiation import naive_initial, negotiate
 
     flights = load_flights()
     r = disruptions(flights).iloc[row]
     s = row_to_disruption(r)
     c = build_context(s, next_departure_same_tail(flights, r))
-    # Naive first ATC offer (first runway / gate, short gap): may break constraints on purpose
-    initial = Proposal(revised_arrival_delay_min=c.earliest_arrival_delay_min, holding_min=15, slot_gap_min=1.5,
-                       runway=c.runways[0], gate=c.gates[0], rationale="initial ATC slot")
-    out = negotiate(s, c, initial)
+    out = negotiate(s, c, naive_initial(c))
     print(out.model_dump(exclude={"turns"}))
+
+
+def evaluate(n: int, seed: int, workers: int) -> None:
+    from .data import load_flights
+    from .evaluate import run_eval
+
+    _, summary, out = run_eval(load_flights(), n, seed, workers)
+    print(summary)
+    print(f"-> {out}")
 
 
 def main() -> None:
@@ -44,5 +49,14 @@ def main() -> None:
     sub.add_parser("check")
     r = sub.add_parser("run")
     r.add_argument("--row", type=int, default=0)
+    e = sub.add_parser("eval")
+    e.add_argument("--n", type=int, default=20)
+    e.add_argument("--seed", type=int, default=0)
+    e.add_argument("--workers", type=int, default=4)
     args = ap.parse_args()
-    check() if args.cmd == "check" else run(args.row)
+    if args.cmd == "check":
+        check()
+    elif args.cmd == "run":
+        run(args.row)
+    else:
+        evaluate(args.n, args.seed, args.workers)
