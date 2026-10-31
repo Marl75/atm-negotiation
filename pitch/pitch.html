@@ -121,7 +121,7 @@ ul, ol { margin: 0; padding-left: 20px; display: grid; gap: 6px }
           whatever we do. The pilot refuses three times, the solver finds no legal plan, and it escalates to the
           supervisor with the reason logged. It never forces a plan. Our own failure: our "perfect" predictions came
           from a leak, a DOT column filled in after the flight. We isolated it and report accuracy on clean rows only.</p>
-        <p class="show">Log WN1347 : « no plan passes every hard check: escalated to the approach supervisor ». Puis tableau fuite : 31 % de correspondances exactes sur les lignes à fuite, 0 % sur les lignes propres.</p>
+        <p class="show">Log WN1347 : « no plan passes every hard check: escalated to the approach supervisor ». Puis tableau fuite : 21 % de créneaux exactement égaux au retard réel sur les lignes à fuite (33 vols), 3 % sur les lignes propres (222 vols).</p>
       </div>
     </article>
 
@@ -131,9 +131,9 @@ ul, ol { margin: 0; padding-left: 20px; display: grid; gap: 6px }
         <p class="say">The numbers. On over 450 flights checked, no unsafe plan was kept, and no agent accepted a plan
           breaking a rule of its own domain. Ordinary flights: nine in ten keep their plan, nothing to negotiate. Flights under
           stress: ground finds free gates, holding becomes a ground hold, and about half go to a human because no legal
-          plan exists. Per-airline turnaround cut departure-delay error by 16 % on months we never trained on. Four to
+          plan exists. Per-airline turnaround cut departure-delay error by 14 % on months we never trained on. Four to
           nine cents a flight, under 15 seconds.</p>
-        <p class="show">Une slide, trois blocs : sécurité (0 / 0), vols ordinaires vs sous tension, calibration −16 % (juil.–déc.).</p>
+        <p class="show">Une slide, trois blocs : sécurité (0 / 0), vols ordinaires vs sous tension, calibration −14 % (juil.–déc.).</p>
       </div>
     </article>
 
@@ -161,7 +161,7 @@ ul, ol { margin: 0; padding-left: 20px; display: grid; gap: 6px }
         <tr><td>Acceptations dangereuses dans son domaine</td><td class="n">0</td><td>plus de 450 vols vérifiés dans les logs</td></tr>
         <tr><td>Vols ordinaires : plan gardé au tour 1</td><td class="n">89 % (82–96)</td><td>150 vols sans fuite, 3 échantillons</td></tr>
         <tr><td>Vols sous tension : escalades</td><td class="n">49 / 105 (31–57 %)</td><td>105 vols sous tension, 3 échantillons</td></tr>
-        <tr><td>Erreur retard départ après calibration</td><td class="n">16.7 → 14.0 min</td><td>60 542 vols, juil.–déc.</td></tr>
+        <tr><td>Erreur retard départ après calibration</td><td class="n">16.7 → 14.4 min (−14 %)</td><td>60 542 vols, juil.–déc., modèle adopté</td></tr>
         <tr><td>Coût / latence</td><td class="n">$0.04–0.09 · 8–14 s</td><td>par vol</td></tr>
       </tbody>
     </table></div>

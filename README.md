@@ -14,9 +14,9 @@ evidence.
 | Safe plans kept (255 evaluated flights, 3 samples × 2 populations) | **200 / 200** |
 | Agents accepting a plan that breaks a rule of their own domain (450+ flights checked) | **0** |
 | Ordinary flights: consensus within 3 turns (planned slot kept as is: 89 %) | 96 % (92–100 %) |
-| Flights under stress: fixed by agents / escalated to a human (crew > 13 h) | 54 % / 31–57 % |
-| Departure-delay error after per-airline turnaround calibration (Jul–Dec, unseen) | 16.7 → **14.0 min** |
-| Cost and latency | $0.04–0.09, 9–14 s per flight |
+| Flights under stress: consensus / escalated to a human (crew > 13 h) | 54 % (43–69 %) / 47 % (31–57 %) |
+| Departure-delay error after per-airline turnaround calibration (Jul–Dec, unseen) | 16.7 → **14.4 min** (−14 %) |
+| Cost and latency | $0.04–0.09, 8–14 s per flight |
 
 ```bash
 uv sync && cp .env.example .env            # add ANTHROPIC_API_KEY
@@ -200,8 +200,8 @@ règles seules sur un tirage aléatoire. Fourchette = min–max sur les 3 échan
 | Acceptations hors domaine (voulues), rattrapées par les règles | 22 | 191 |
 | Qui a écrit la solution retenue | statu quo accepté 89 % (82–96 %) | Sol 29 %, retenue au sol 21 %, Pilote 4 %, escalade 46 % |
 | Attente en vol (statu quo → négocié) | 0,3 → 0 min | 0,7 → 0 min |
-| Erreur du créneau prédit vs retard réel | 38,2 min (36,9–39,7) | 14,5 min (1er échantillon, lignes sans fuite) |
-| Coût / latence | 6,73 $ (0,045 $/vol), ~9 s/vol | 8,97 $ (0,085 $/vol), 14 s/vol |
+| Erreur du créneau prédit vs retard réel | 38,2 min (36,9–39,7) | 18,0 min (lignes sans fuite, 72 vols) |
+| Coût / latence | 6,73 $ (0,045 $/vol), 8–9 s/vol | 8,97 $ (0,085 $/vol), 14 s/vol |
 
 **Lecture honnête**
 - **Sécurité : 200/200 solutions sûres, 0 acceptation dangereuse dans le domaine de l'agent** sur ces 255 vols, et
@@ -311,14 +311,16 @@ lignes dont le retard entrant vient du vol précédent (pas de fuite) : 83 171 l
 | Modèle (sur les mois de test) | Erreur retard départ | Biais départ | Erreur retard arrivée | Arrivée à ±15 min |
 |---|---|---|---|---|
 | M0 rotation fixe 35 min (avant) | 16,7 min | −12,2 | 18,8 min | 62,8 % |
-| **M1 rotation par compagnie (adopté)** | **14,0 min (−16 %)** | **−7,6** | 18,5 min | 61,9 % |
+| M1 rotation par compagnie seule | 14,0 min (−16 %) | −7,6 | 18,5 min | 61,9 % |
+| **Adopté : max(M1, minimum du classeur à l'origine)** | **14,4 min (−14 %)** | **−5,4** | — | — |
 | M2 = M1 + retard résiduel historique compagnie × aéroport × heure | 13,3 min | −6,4 | 18,3 min | 60,7 % |
 | M3 = M2 + médiane historique côté arrivée | 13,3 min | −6,4 | 17,8 min | 65,1 % |
 
 - **Rotation par compagnie** = médiane du temps entre l'atterrissage de l'avion entrant et notre départ réel, quand
   le départ attend l'avion (`LATE_AIRCRAFT_DELAY > 0`) : de 27 min (HA) à 54 min (UA). Utilisée pour l'heure où
-  l'avion est prêt, l'occupation des portes et le contrôle de rotation. Valeurs figées dans `calibration.py`, un test
-  vérifie qu'elles correspondent à un nouvel ajustement.
+  l'avion est prêt et l'occupation des portes, **jamais en dessous du minimum du classeur** à l'aéroport : c'est ce
+  modèle adopté qui donne 14,4 min (−14 %, biais réduit à −5,4). Valeurs figées dans `calibration.py`, un test vérifie
+  qu'elles correspondent à un nouvel ajustement.
 - **M2 / M3 mesurés, pas adoptés** : gains faibles (−0,7 min au départ, −0,7 min à l'arrivée) pour un modèle moins
   explicable, fait de moyennes historiques.
 - **Ce qui reste imprévisible avant le départ** : en moyenne 14,6 min de retard au départ ne viennent pas de l'avion

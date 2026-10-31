@@ -38,7 +38,8 @@ basis (regulatory / data / assumption) and source.
 Flights under stress (105): 56/56 safe plans; ground fixes gates (29 %), ground holds replace airborne holding (21 %),
 and 31–57 % are escalated because the crew would exceed 13 h whatever the plan. Zero own-domain unsafe acceptances on
 over 450 flights checked in the logs. Turnaround calibrated per airline (fit Jan–Jun, tested Jul–Dec) cut the
-departure-delay error from 16.7 to 14.0 min. Cost $0.04–0.09 and 9–14 s per flight.
+departure-delay error from 16.7 to 14.4 min (−14 %, with the workbook minimum as a floor). Cost $0.04–0.09 and 8–14 s
+per flight.
 
 **Failure cases shown.** Crew-duty escalations; a data leak we found ourselves (a DOT delay column filled after the
 flight explained our "perfect" predictions), isolated and excluded from accuracy claims; run-to-run LLM variability
