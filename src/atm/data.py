@@ -24,7 +24,7 @@ def flights_path() -> Path:
     raise FileNotFoundError(f"Put the Challenge #2 DATA files (flights.csv, airlines.csv, airports.csv) in {DATA_DIR}")
 
 
-def load_flights(nrows: int | None = 200_000) -> pd.DataFrame:
+def load_flights(nrows: int | None = None) -> pd.DataFrame:
     return pd.read_csv(flights_path(), usecols=USECOLS, nrows=nrows, low_memory=False)
 
 
@@ -33,7 +33,7 @@ def disruptions(df: pd.DataFrame) -> pd.DataFrame:
     return df[mask].reset_index(drop=True)
 
 
-def load_disruptions(nrows: int | None = 200_000) -> pd.DataFrame:
+def load_disruptions(nrows: int | None = None) -> pd.DataFrame:
     return disruptions(load_flights(nrows))
 
 
