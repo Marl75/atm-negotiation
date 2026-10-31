@@ -57,17 +57,41 @@ Supprimé de la v0 : `max_holding` (pas de limite réglementaire, c'est le carbu
 
 **Évaluation :** `ARRIVAL_DELAY` réel du DOT n'est jamais donné aux agents ; il sert de référence « sans le système ».
 
+## Résultats d'évaluation — run du 31/10/2026 (`atm eval --n 20 --seed 0`)
+Échantillon stratifié : 10 lignes météo + 10 late aircraft (le fichier est à 91 % late aircraft). Opus 5.5, effort `low`.
+
+| Métrique | Négocié (3 agents) | Repli déterministe seul | Statu quo (offre ATC seule) | Réalité DOT |
+|---|---|---|---|---|
+| Consensus | 20/20, toujours en 2 tours | — | — | — |
+| Solutions finales sûres (contrôles hard) | **20/20** | 20/20 | **0/20** | — |
+| Attente en vol moyenne | 6,4 min | **0 min** | 15 min | inconnue |
+| Retard moyen à l'arrivée | 73,4 min | 73,4 min | 73,4 min | 89,2 min |
+| Échecs soft moyens (rotation, équipe) | 0,5 | 0,5 | — | — |
+| Retard du vol suivant : erreur moyenne (6 cas) | 36 min, sous-estimé de 25 min | | | |
+| Coût / latence | 120 appels, **2,34 $** (0,12 $/vol), 32 s/vol | ~0 s | | |
+
+**Ce que ça montre honnêtement**
+- Les agents n'ont **jamais** accepté une proposition dangereuse, et le checker garantit 20/20 de solutions sûres.
+- **Le solveur déterministe fait mieux que les LLM sur le coût** : 0 min d'attente en vol contre 6,4. Les agents restent ancrés sur les 15 min de l'offre initiale et les réduisent sans aller jusqu'à 0 (aucun ne propose de retenir l'avion au sol au départ).
+- Le consensus à 100 % en 2 tours est **flatteur** : l'offre initiale échoue toujours sur le sillage (1,5 min derrière un Heavy), donc le tour 1 corrige une erreur évidente. Le statu quo « 0/20 sûr » est construit, ce n'est pas une mesure de la réalité.
+- Les 16 min d'écart avec la réalité **ne sont pas un gain** : le créneau d'entrée = `WEATHER + LATE_AIRCRAFT` et ignore les retards compagnie / système (ex. B61152 : 49 min prévu, 229 réel).
+- Le retard du vol suivant est **sous-estimé** (UA237 : 0 min prédit, 131 réel) : le modèle de rotation ne voit que notre arrivée, pas les autres causes.
+- Limites : n=20, une seule graine, LLM non déterministe, contexte en grande partie simulé.
+
 ## Démarrage
 ```bash
 cp .env.example .env      # puis mettre ANTHROPIC_API_KEY
 uv run atm check          # vérifie la clé API et les données
-uv run pytest             # tests hors ligne
+uv run pytest             # tests hors ligne (agents factices, aucun coût)
 uv run atm run --row 0    # une négociation (appelle l'API)
+uv run atm eval --n 20    # banc d'éval (~0,12 $ par vol)
 ```
 
 ## TODO
-- [ ] Vraies contraintes : catégories de sillage (minima ICAO), horaire de la prochaine rotation du même tail number, correspondances
-- [ ] Scénario enrichi : piste fermée / porte en panne générée à partir de la ligne
-- [ ] Choix du contre-proposition (celui qui passe le plus de contrôles durs)
-- [ ] Banc d'éval : N lignes -> taux de consensus, tours moyens, delta vs repli
+- [x] Contraintes sourcées (sillage ICAO, réserve 45 min, rotation via tail number)
+- [x] Choix déterministe de la contre-proposition
+- [x] Banc d'éval avec baselines
+- [ ] Mettre la solution du solveur dans les candidats + option « retenue au sol au départ » (holding 0)
+- [ ] Offre initiale plus réaliste (pas un homme de paille) pour mesurer une vraie négociation
+- [ ] Correspondances passagers, débit secteur (AAR), taxiways
 - [ ] UI de démo (journal de consensus lisible)

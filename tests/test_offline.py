@@ -80,3 +80,21 @@ def test_select_counter_safety_beats_cost():
 
 def test_select_counter_none_without_counters():
     assert select_counter(S, C, [Evaluation(role=Role.ATC, accept=False)]) is None
+
+
+def test_agents_only_see_their_domain():
+    from atm.agents import ATCAgent, GroundAgent, PilotAgent
+
+    agents = [ATCAgent(), PilotAgent(), GroundAgent()]
+    seen = [set(a.context_fields) for a in agents]
+    assert all(f in OpsContext.model_fields for s in seen for f in s)
+    ground_prompt = GroundAgent().prompt(S, C, _p(slot_gap_min=1.5))
+    assert "closed_runways" not in ground_prompt and "holding_fuel_available_min" not in ground_prompt
+    assert '"wake_separation"' not in ground_prompt  # ATC check, not shown to ground
+
+
+def test_prompt_carries_domain_checks():
+    from atm.agents import ATCAgent
+
+    prompt = ATCAgent().prompt(S, C, _p(slot_gap_min=1.5))
+    assert '"id": "wake_separation"' in prompt and '"passed": false' in prompt
