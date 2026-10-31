@@ -1,0 +1,214 @@
+<title>ATM Negotiation Pitch</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans+Condensed:wght@500;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+<style>
+/* Layout: a stack of ATC flight-progress strips, one per pitch segment: time box left, script right. */
+:root {
+  --bg: #eef2f4; --surface: #ffffff; --strip: #f7fbf6; --ink: #17222b; --muted: #55636e;
+  --rule: #c9d3da; --accent: #1d6f8c; --warn: #a2551b; --ok: #2f7a4b; --say-bg: #e7f1f5;
+  --display: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+  --body: "Source Serif 4", Georgia, serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #10171c; --surface: #172129; --strip: #1a2630; --ink: #e3eaee; --muted: #9aa9b3;
+  --rule: #2c3a44; --accent: #6cc0dc; --warn: #e3a067; --ok: #79c795; --say-bg: #1d3340; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #10171c; --surface: #172129; --strip: #1a2630; --ink: #e3eaee; --muted: #9aa9b3;
+  --rule: #2c3a44; --accent: #6cc0dc; --warn: #e3a067; --ok: #79c795; --say-bg: #1d3340; color-scheme: dark }
+
+* { box-sizing: border-box }
+body { background: var(--bg); color: var(--ink); font: 16px/1.55 var(--body); }
+.wrap { max-width: 980px; margin: 0 auto; padding-block: 32px 64px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 28px }
+h1, h2, h3 { font-family: var(--display); text-wrap: balance; margin: 0; letter-spacing: .01em }
+h1 { font-size: clamp(28px, 4.5vw, 40px); line-height: 1.1 }
+h2 { font-size: 22px; margin-top: 8px }
+h3 { font-size: 16px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted) }
+p { margin: 0 }
+.lede { color: var(--muted); max-width: 68ch }
+.meta { display: flex; flex-wrap: wrap; gap: 8px 20px; font: 13px var(--mono); color: var(--muted) }
+.meta b { color: var(--ink); font-weight: 600 }
+
+.strips { display: grid; gap: 10px }
+.strip { display: grid; grid-template-columns: 112px minmax(0, 1fr); background: var(--strip);
+  border: 1px solid var(--rule); border-left: 6px solid var(--accent); border-radius: 3px }
+.strip.fail { border-left-color: var(--warn) }
+.strip.num { border-left-color: var(--ok) }
+.time { padding: 14px 12px; border-right: 1px dashed var(--rule); font: 600 15px/1.3 var(--mono);
+  display: grid; align-content: start; gap: 6px; font-variant-numeric: tabular-nums }
+.time small { font: 400 11px var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: .06em }
+.body { padding: 14px 18px; display: grid; gap: 10px; min-width: 0 }
+.say { background: var(--say-bg); border-radius: 3px; padding: 10px 14px; font-size: 17px }
+.say::before { content: "SAY"; display: block; font: 600 11px var(--mono); letter-spacing: .1em; color: var(--accent); margin-bottom: 4px }
+.show { font: 13.5px/1.5 var(--mono); color: var(--muted) }
+.show::before { content: "À L'ÉCRAN — "; font-weight: 600; color: var(--ink) }
+code, .cmd { font-family: var(--mono); font-size: 13px }
+.cmd { display: block; background: var(--surface); border: 1px solid var(--rule); border-radius: 3px; padding: 8px 10px;
+  overflow-x: auto; white-space: pre; color: var(--ink) }
+
+.panel { background: var(--surface); border: 1px solid var(--rule); border-radius: 4px; padding: 20px 22px; display: grid; gap: 14px }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px }
+table { border-collapse: collapse; width: 100%; font-size: 14.5px }
+th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--rule); vertical-align: top }
+th { font: 600 12px var(--mono); text-transform: uppercase; letter-spacing: .05em; color: var(--muted) }
+td.n { font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap }
+.tablebox { overflow-x: auto }
+.qa { display: grid; gap: 12px }
+.qa div { display: grid; gap: 3px }
+.qa b { font-family: var(--display); font-size: 16px }
+ul, ol { margin: 0; padding-left: 20px; display: grid; gap: 6px }
+.tag { font: 600 11px var(--mono); padding: 2px 6px; border-radius: 2px; background: var(--say-bg); color: var(--accent) }
+.total { font: 13px var(--mono); color: var(--muted) }
+@media (max-width: 560px) {
+  .strip { grid-template-columns: 1fr }
+  .time { border-right: 0; border-bottom: 1px dashed var(--rule); grid-auto-flow: column; justify-content: start; gap: 14px }
+}
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto } }
+</style>
+
+<div class="wrap">
+  <header style="display:grid;gap:12px">
+    <h3>Autonomous SG 2026 · Airbus track · Challenge #2</h3>
+    <h1>ATM Negotiation — script du pitch (3 min)</h1>
+    <p class="lede">Texte à dire en anglais, indications de démo en français. Environ 400 mots parlés : à voix posée,
+      ça tient en 2 min 45 s. Tous les chiffres viennent des runs du 31/10 avec les limites du classeur officiel.</p>
+    <div class="meta"><span>Utilisateur : <b>approach supervisor, DFW TRACON</b></span><span>Vol de démo : <b>MQ3439 MOB→DFW</b></span><span>Cas d'échec : <b>WN1347 BWI→FLL</b></span></div>
+  </header>
+
+  <section class="strips" aria-label="Déroulé minuté">
+    <article class="strip">
+      <div class="time">0:00–0:20<small>Problème</small></div>
+      <div class="body">
+        <p class="say">When a gate is blocked or a crew runs out of duty time, the approach supervisor at Dallas still
+          sorts it out by phone: tower, dispatch, ramp. Each side sees only its own constraints. Across 358,000 delayed
+          flights in the 2015 DOT data, one in twenty had an uncoordinated plan that was illegal.</p>
+        <p class="show">Slide titre : une ligne de flights.csv + « 5.1 % of disrupted flights: uncoordinated plan breaks a hard rule (10,000-flight audit) ».</p>
+      </div>
+    </article>
+
+    <article class="strip">
+      <div class="time">0:20–0:45<small>Ce qu'on a construit</small></div>
+      <div class="body">
+        <p class="say">Three independent agents: ATC, pilot and ground, each its own model call, each seeing only its
+          own domain. They exchange structured messages for at most three turns. Claude negotiates and explains;
+          deterministic rules from the challenge workbook decide what is legal; a solver decides if they don't agree;
+          the supervisor approves.</p>
+        <p class="show">Schéma 3 agents → checks déterministes → solveur → superviseur. Montrer « LLM proposes / rules decide / human approves ».</p>
+      </div>
+    </article>
+
+    <article class="strip">
+      <div class="time">0:45–1:30<small>Démo</small></div>
+      <div class="body">
+        <p class="say">One real row: Envoy 3439, Mobile to Dallas, 45 minutes late. Turn one: ATC offers the slot, the
+          pilot accepts, ground rejects: gate G10 is busy until 17:29 and we land at 16:55. Every check shows its rule
+          and source. Turn two: ground proposes G12, 110 minutes ahead, above the 20-minute notice rule. All three
+          accept, the supervisor approves, and it goes in the log.</p>
+        <p class="say">Try to break it: forty minutes of holding, one minute behind the aircraft ahead. Refused
+          instantly, wake separation and fuel reserve, rule cited.</p>
+        <p class="show">Viewer : replay MQ3439, tour 1 (FAIL gate_available, source), tour 2 (3 × accept). Puis terminal :</p>
+        <code class="cmd">uv run atm check-proposal --row 356 --holding 40 --delay 70 --gap 1.0</code>
+      </div>
+    </article>
+
+    <article class="strip fail">
+      <div class="time">1:30–2:00<small>Où ça casse</small></div>
+      <div class="body">
+        <p class="say">Where it fails. Southwest 1347: the crew would block in ten minutes past its 13-hour limit,
+          whatever we do. The pilot refuses three times, the solver finds no legal plan, and it escalates to the
+          supervisor with the reason logged. It never forces a plan. Our own failure: our "perfect" predictions came
+          from a leak, a DOT column filled in after the flight. We isolated it and report accuracy on clean rows only.</p>
+        <p class="show">Log WN1347 : « no plan passes every hard check: escalated to the approach supervisor ». Puis tableau fuite : 31 % de correspondances exactes sur les lignes à fuite, 0 % sur les lignes propres.</p>
+      </div>
+    </article>
+
+    <article class="strip num">
+      <div class="time">2:00–2:35<small>Évaluation</small></div>
+      <div class="body">
+        <p class="say">The numbers. On nearly 300 flights checked, no unsafe plan was kept, and no agent accepted a plan
+          breaking a rule of its own domain. Ordinary flights: 96 % keep their plan, nothing to negotiate. Flights under
+          stress: ground finds free gates, holding becomes a ground hold, and 20 of 35 go to a human because no legal
+          plan exists. Per-airline turnaround cut departure-delay error by 16 % on months we never trained on. Four to
+          nine cents a flight, under 15 seconds.</p>
+        <p class="show">Une slide, trois blocs : sécurité (0 / 0), vols ordinaires vs sous tension, calibration −16 % (juil.–déc.).</p>
+      </div>
+    </article>
+
+    <article class="strip">
+      <div class="time">2:35–3:00<small>Impact et limites</small></div>
+      <div class="body">
+        <p class="say">Monday morning, the supervisor gets a checked plan and a reason instead of a phone tree. Our
+          changes to the workbook are on this slide; the main one: turnaround is forecast per airline, never below the
+          workbook minimum. Airport limits are synthetic and the crew rule simplified, so next is real gate and crew
+          data from one airline. Thank you.</p>
+        <p class="show">Slide « Écarts au classeur » (obligatoire, règle du jeu) : liste des 7 écarts du README.</p>
+      </div>
+    </article>
+    <p class="total">Total parlé : environ 400 mots. Si tu es en retard à 2:00, saute la phrase sur la calibration.</p>
+  </section>
+
+  <section class="panel">
+    <h2>Chiffres à avoir en tête</h2>
+    <div class="tablebox"><table>
+      <thead><tr><th>Mesure</th><th>Valeur</th><th>Source</th></tr></thead>
+      <tbody>
+        <tr><td>Plan non coordonné illégal</td><td class="n">5.1 % [4.7–5.6]</td><td>audit, 10 000 vols, sans LLM</td></tr>
+        <tr><td>Aucun plan légal → superviseur</td><td class="n">2.6 %</td><td>audit, surtout équipage &gt; 13 h</td></tr>
+        <tr><td>Plans dangereux retenus</td><td class="n">0 / 63</td><td>éval finale, 85 vols</td></tr>
+        <tr><td>Acceptations dangereuses dans son domaine</td><td class="n">0</td><td>285 vols vérifiés dans les logs</td></tr>
+        <tr><td>Vols ordinaires : plan gardé au tour 1</td><td class="n">96 %</td><td>50 vols sans fuite</td></tr>
+        <tr><td>Vols sous tension : escalades</td><td class="n">20 / 35</td><td>35 vols sous tension</td></tr>
+        <tr><td>Erreur retard départ après calibration</td><td class="n">16.7 → 14.0 min</td><td>60 542 vols, juil.–déc.</td></tr>
+        <tr><td>Coût / latence</td><td class="n">$0.04–0.09 · 8–14 s</td><td>par vol</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section class="panel">
+    <h2>Questions probables du jury</h2>
+    <div class="qa">
+      <div><b>« 15 sur 20 se règlent au tour 1 : à quoi servent les agents ? »</b>
+        <p>Au quotidien, à rien, et c'est voulu : ils ne dégradent pas un plan déjà bon. Leur valeur est dans les pics :
+          sur les vols sous tension, l'agent sol corrige les conflits de porte et le pilote refuse ce qui casse ses règles.</p></div>
+      <div><b>« Pourquoi un LLM si un solveur suffit ? »</b>
+        <p>Le solveur décide de la légalité, les agents expliquent dans le langage de chaque métier et portent les
+          objections. Le superviseur lit trois raisons, pas un score. Le solveur n'a gagné qu'une fois quand un agent
+          avait une solution.</p></div>
+      <div><b>« Vos données d'aéroport sont-elles réelles ? »</b>
+        <p>Non : ce sont les limites synthétiques du classeur du challenge, et on le dit. Le vol, les retards, les
+          immatriculations et les rotations viennent du DOT 2015 réel.</p></div>
+      <div><b>« La limite de 13 h n'est-elle pas trop stricte ? »</b>
+        <p>C'est la règle simplifiée du classeur. La Table B de la Part 117 donne 14 h le matin ; elle est codée en
+          variante. Le taux d'escalade dépend de ce choix.</p></div>
+      <div><b>« Les résultats sont-ils stables ? »</b>
+        <p>Environ 10 % des vols changent d'un run à l'autre (mesuré). Les garanties de sécurité, elles, viennent des
+          règles et ne varient pas.</p></div>
+      <div><b>« 14 secondes, c'est rapide pour un contrôleur ? »</b>
+        <p>C'est un outil de coordination avant le départ, pas en finale : il remplace des appels de plusieurs minutes.</p></div>
+    </div>
+  </section>
+
+  <section class="grid2">
+    <div class="panel">
+      <h2>Avant de monter sur scène</h2>
+      <ol>
+        <li>Ouvrir le viewer sur le log de MQ3439, positionné au tour 1.</li>
+        <li>Préparer le terminal dans <code>atm-negotiation/</code>, commande <code>check-proposal</code> tapée.</li>
+        <li>Ouvrir le log de WN1347 sur la ligne <code>fallback_reason</code>.</li>
+        <li>Slide « Écarts au classeur » prête : elle est exigée par les règles du jeu.</li>
+        <li>Chronométrer une répétition complète : objectif 2:50.</li>
+      </ol>
+    </div>
+    <div class="panel">
+      <h2>Plan B si la démo plante</h2>
+      <ul>
+        <li>Captures d'écran des tours 1 et 2 de MQ3439 dans les slides.</li>
+        <li>Sortie JSON de <code>check-proposal</code> collée sur une slide.</li>
+        <li>Ne jamais lancer <code>atm run</code> en direct : appel API, latence imprévisible.</li>
+      </ul>
+    </div>
+  </section>
+</div>
