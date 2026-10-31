@@ -59,6 +59,18 @@ def _audit_chunk(args) -> list[dict]:
     return [audit_row(r, _FLIGHTS, planned_gate, seed) for _, r in rows.iterrows()]
 
 
+def screen(rows: pd.DataFrame, workers: int = 8, gates_per_airline: int | None = None,
+           flights: pd.DataFrame | None = None) -> pd.DataFrame:
+    """audit_row on each row, results aligned with `rows` (same order). Rules only, used to pick stress flights."""
+    gates = ctx_mod.GATES_PER_AIRLINE if gates_per_airline is None else gates_per_airline
+    if workers <= 1:
+        flights = load_flights() if flights is None else flights  # once, not per row
+        return pd.DataFrame([audit_row(r, flights) for _, r in rows.iterrows()])
+    chunks = [(rows.iloc[i:i + 250], "first", 0) for i in range(0, len(rows), 250)]
+    with ProcessPoolExecutor(workers, initializer=_init, initargs=(gates,)) as ex:
+        return pd.DataFrame([x for part in ex.map(_audit_chunk, chunks) for x in part])
+
+
 def wilson(k: int, n: int, z: float = 1.96) -> tuple[float, float]:
     """95% confidence interval of a proportion, in %."""
     if n == 0:

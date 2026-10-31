@@ -36,6 +36,37 @@ def sample(flights: pd.DataFrame, n: int, seed: int = 0) -> pd.DataFrame:
     return pd.concat([weather.sample(k, random_state=seed), late.sample(n - k, random_state=seed)])
 
 
+POPULATIONS = ("stratified", "prev_leg", "stress")
+
+
+def populations(flights: pd.DataFrame, population: str, n: int, samples: int = 1, seed: int = 0,
+                workers: int = 8, pool_size: int | None = None) -> list[pd.DataFrame]:
+    """`samples` disjoint samples of n flights.
+
+    - stratified: half weather, half late aircraft, all rows
+    - prev_leg: same, only rows whose inbound delay comes from the previous leg (no LATE_AIRCRAFT_DELAY leak)
+    - stress: flights where the uncoordinated plan breaks a hard rule or flies airborne holding, screened by the
+      rules alone (audit) on a random pool - where coordination has something to do
+    """
+    d = disruptions(flights)
+    if population == "prev_leg":
+        d = d[d["KNOWN_DELAY_SRC"].str.startswith("previous leg")]
+    if population == "stress":
+        from .audit import screen  # rules only, no LLM
+        pool = d.sample(min(len(d), pool_size or max(6000, 40 * n * samples)), random_state=seed)
+        res = screen(pool, workers, flights=flights)
+        shuffled = pool[((res["sq_hard_fails"] != "") | (res["sq_holding"] > 0)).to_numpy()].sample(
+            frac=1, random_state=seed)
+        if len(shuffled) < n * samples:
+            raise ValueError(f"only {len(shuffled)} stress flights in the pool for {n * samples} requested")
+        return [shuffled.iloc[i * n:(i + 1) * n] for i in range(samples)]
+    weather = d[d["WEATHER_DELAY"] > 15].sample(frac=1, random_state=seed)
+    late = d[d["WEATHER_DELAY"] <= 15].sample(frac=1, random_state=seed)
+    k = n // 2
+    return [pd.concat([weather.iloc[i * k:(i + 1) * k], late.iloc[i * (n - k):(i + 1) * (n - k)]])
+            for i in range(samples)]
+
+
 def _soft_fails(s, c, p: Proposal | None) -> int | None:
     return None if p is None else sum(not r.passed for r in check_all(s, c, p) if not r.hard)
 
@@ -112,6 +143,9 @@ def _by_source(ok: pd.DataFrame, metric) -> dict:
 
 def summarize(df: pd.DataFrame) -> dict:
     ok = df[df["error"].isna()]
+    if ok.empty:  # every flight errored or hit the budget cap
+        return {"cases": len(df), "errors": int(df["error"].notna().sum()),
+                "error_kinds": df["error"].value_counts().to_dict()}
     solved = ok[~ok["escalated"]]
     leg = ok.dropna(subset=["pred_next_dep_delay"]) if "pred_next_dep_delay" in ok else ok.iloc[0:0]
     err = (leg["pred_next_dep_delay"] - leg["real_next_dep_delay"]) if len(leg) else pd.Series(dtype=float)
@@ -163,15 +197,26 @@ def summarize(df: pd.DataFrame) -> dict:
     }
 
 
-def run_eval(flights: pd.DataFrame, n: int = 20, seed: int = 0, workers: int = 4, agents: list | None = None):
-    rows = sample(flights, n, seed)
+def run_eval(flights: pd.DataFrame, n: int = 20, seed: int = 0, workers: int = 4, agents: list | None = None,
+             rows: pd.DataFrame | None = None, tag: str = "", max_cost_usd: float | None = None):
+    """One eval run. `rows` overrides the default stratified sample. `max_cost_usd` caps this run's API spend:
+    once reached, remaining flights are recorded as errors ("budget cap") instead of calling the API."""
+    rows = sample(flights, n, seed) if rows is None else rows
+    calls0, in0, out0 = llm.USAGE["calls"], llm.USAGE["input_tokens"], llm.USAGE["output_tokens"]
+    spent = lambda: ((llm.USAGE["input_tokens"] - in0) * llm.PRICE_IN + (llm.USAGE["output_tokens"] - out0) * llm.PRICE_OUT) / 1e6
+
+    def case(r):
+        if max_cost_usd is not None and spent() >= max_cost_usd:
+            return dict(flight_id=r["AIRLINE"] + str(r["FLIGHT_NUMBER"]), error="budget cap reached, not run")
+        return run_case(flights, r, agents)
+
     with ThreadPoolExecutor(workers) as ex:
-        results = list(ex.map(lambda r: run_case(flights, r, agents), [r for _, r in rows.iterrows()]))
+        results = list(ex.map(case, [r for _, r in rows.iterrows()]))
     df = pd.DataFrame(results)
-    summary = summarize(df)
-    out = EVAL_DIR / datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    summary = summarize(df) | {"llm_calls": llm.USAGE["calls"] - calls0, "cost_usd": round(spent(), 2)}
+    out = EVAL_DIR / (datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + (f"_{tag}" if tag else ""))
     out.mkdir(parents=True, exist_ok=True)
     df.to_csv(out / "results.csv", index=False)
     (out / "summary.md").write_text(
-        f"# Eval n={n} seed={seed}\n\n" + "\n".join(f"- **{k}**: {v}" for k, v in summary.items()) + "\n")
+        f"# Eval n={len(rows)} seed={seed} {tag}\n\n" + "\n".join(f"- **{k}**: {v}" for k, v in summary.items()) + "\n")
     return df, summary, out

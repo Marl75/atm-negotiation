@@ -81,3 +81,26 @@ def test_dot_cause_minutes_reach_agents_but_not_the_rules():
     r2 = r.copy()
     r2[["AIR_SYSTEM_DELAY", "AIRLINE_DELAY", "SECURITY_DELAY"]] = 999
     assert build_scenario(FLIGHTS, r2)[1] == c
+
+
+def test_populations_are_disjoint_and_filtered():
+    from atm.evaluate import populations
+
+    s = populations(FLIGHTS, "prev_leg", n=10, samples=3)
+    ids = [set(x.index) for x in s]
+    assert all(len(x) == 10 for x in s) and not (ids[0] & ids[1] or ids[0] & ids[2] or ids[1] & ids[2])
+    assert all(x["KNOWN_DELAY_SRC"].str.startswith("previous leg").all() for x in s)
+
+
+def test_stress_population_only_has_problem_flights():
+    from atm.audit import screen
+    from atm.evaluate import populations
+
+    (rows,) = populations(FLIGHTS, "stress", n=5, samples=1, workers=1, pool_size=200)
+    res = screen(rows, workers=1, flights=FLIGHTS)
+    assert ((res["sq_hard_fails"] != "") | (res["sq_holding"] > 0)).all()
+
+
+def test_budget_cap_stops_api_calls():
+    df, summary, _ = run_eval(FLIGHTS, n=4, agents=[Fixer(r) for r in Role], workers=1, max_cost_usd=0)
+    assert (df["error"] == "budget cap reached, not run").all() and summary["llm_calls"] == 0

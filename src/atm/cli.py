@@ -111,13 +111,21 @@ def check_proposal(row: int | None, log: str | None, overrides: dict) -> None:
                                  "checks": [r.model_dump(mode="json") for r in checks]}, indent=2) + "\n")
 
 
-def evaluate(n: int, seed: int, workers: int) -> None:
+def evaluate(n: int, seed: int, workers: int, population: str = "stratified", samples: int = 1,
+             max_cost: float | None = None) -> None:
     from .data import load_flights
-    from .evaluate import run_eval
+    from .evaluate import populations, run_eval
 
-    _, summary, out = run_eval(load_flights(), n, seed, workers)
-    print(summary)
-    print(f"-> {out}")
+    flights = load_flights()
+    if population == "stratified" and samples == 1:  # historical default: same 20 flights for seed 0
+        _, summary, out = run_eval(flights, n, seed, workers, max_cost_usd=max_cost)
+        print(summary)
+        print(f"-> {out}")
+        return
+    for i, rows in enumerate(populations(flights, population, n, samples, seed)):
+        _, summary, out = run_eval(flights, n, seed, workers, rows=rows, tag=f"{population}_s{seed}-{i + 1}of{samples}",
+                                   max_cost_usd=max_cost)
+        print(f"[{population} sample {i + 1}/{samples}] cost {summary['cost_usd']} $ -> {out}")
 
 
 def audit(n: int, seed: int, workers: int, gates: int, planned_gate: str) -> None:
@@ -161,6 +169,10 @@ def main() -> None:
     e.add_argument("--n", type=int, default=20)
     e.add_argument("--seed", type=int, default=0)
     e.add_argument("--workers", type=int, default=4)
+    e.add_argument("--population", choices=["stratified", "prev_leg", "stress"], default="stratified",
+                   help="prev_leg: no LATE_AIRCRAFT_DELAY leak; stress: status quo unsafe or holding (rules screen)")
+    e.add_argument("--samples", type=int, default=1, help="disjoint samples of --n flights, run one after another")
+    e.add_argument("--max-cost", type=float, help="USD cap per sample; flights beyond it are not run")
     a = sub.add_parser("audit", help="status quo vs rules on many flights, no LLM")
     a.add_argument("--n", type=int, default=10_000)
     a.add_argument("--seed", type=int, default=0)
@@ -181,4 +193,4 @@ def main() -> None:
     elif args.cmd == "audit":
         audit(args.n, args.seed, args.workers, args.gates, args.planned_gate)
     else:
-        evaluate(args.n, args.seed, args.workers)
+        evaluate(args.n, args.seed, args.workers, args.population, args.samples, args.max_cost)
