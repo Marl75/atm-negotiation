@@ -52,7 +52,8 @@ d'approche, qui valide le plan.
 data.py          ligne DOT -> Disruption + infos connues avant départ (vol précédent, file, service équipage)
 aircraft.py      type d'avion par immatriculation (registre FAA) -> catégorie de sillage FAA
 traffic.py       file d'arrivée à destination (premier prêt, premier servi) et occupation des portes
-rules.py         règles publiées et sources : FAA 7110.65, 14 CFR 121.639, Part 117, couvre-feux
+workbook.py      lecture du classeur officiel du challenge (limites) et liste des écarts
+rules.py         limites du classeur + règles publiées (sillage FAA, couvre-feux, Part 117 en variante)
 context.py       contexte opérationnel, chaque champ avec sa provenance (DATA / ASSUMPTION / REGULATORY)
 agents/          ATCAgent / PilotAgent / GroundAgent : prompt + appel Claude séparés
 protocol.py      Proposal, Evaluation, ConstraintResult, Turn, Outcome (pydantic)
@@ -85,22 +86,39 @@ echo '{"holding_min": 90, "revised_arrival_delay_min": 120}' | uv run atm check-
 Le viewer (`viewer/`, hors ligne, sans serveur) ne l'appelle pas encore : il faudrait un petit serveur local.
 
 ## Contraintes et provenance des valeurs
-Chaque contrôle du log porte `hard` (sécurité, non négociable) ou soft (coût, négociable), une `basis` et une `source`.
+Toutes les limites opérationnelles viennent du **classeur officiel du challenge**
+(`data/constraints/challenge2_operational_constraints.xlsx`, lu par `workbook.py`). Ses valeurs d'aéroport sont
+**synthétiques**, mises à l'échelle du trafic de `flights.csv` (pas de vraies données d'aéroport). Chaque contrôle du log
+porte `hard` (sécurité, non négociable) ou soft (coût, négociable), une `basis` et une `source`.
 
-| Contrôle | Agent | Type | Base | Valeur / source |
-|---|---|---|---|---|
-| `runway_open` | ATC | hard | ASSUMPTION | Ligne météo → une piste fermée à destination (le DOT ne dit pas où était la météo : départ, route ou arrivée) |
-| `wake_separation` | ATC | hard | REGULATORY | **FAA JO 7110.65 §5-5-4** (espace américain, pas ICAO) : Heavy→Large 5 NM, Heavy→Small 6, Super→Large 7…, sinon 3 NM radar. Avion devant = le vrai précédent dans la file. Conversion à 140 kt (hypothèse). Aéroports en RECAT : autres valeurs |
-| `landing_slot_available` | ATC | hard | DATA | Créneau « premier prêt, premier servi » dans la file reconstituée (même aéroport, même jour). **Aucune minute de cause DOT utilisée** |
-| `airport_curfew` | ATC | hard | REGULATORY | Couvre-feux SNA (arrivées 07:00–23:00) et LGB (07:00–22:00), à vérifier |
-| `final_reserve_fuel` | Pilote | hard | REGULATORY | 14 CFR 121.639 : dégagement + 45 min (ICAO/EASA : 30 min). Carburant au-dessus des réserves : 20 min (**hypothèse**, le DOT n'a pas de carburant) |
-| `departure_feasible` | Pilote | hard | DATA | L'avion ne part pas avant d'être prêt : retard − attente en vol ≥ retard connu de l'avion entrant |
-| `flight_crew_duty` | Pilote | hard | REGULATORY | **14 CFR 117 Table B** : service max selon l'heure de prise de service et le nombre d'étapes. Prise de service = 1 h avant le premier départ de l'avion ce jour-là dans le fichier (hypothèse : l'équipage suit l'avion). Au-delà : un humain décide (extension 117.19 ≤ 2 h ou équipage de réserve) |
-| `gate_available` | Sol | hard | DATA | 4 portes par compagnie (hypothèse) ; les arrivées de la même compagnie séquencées avant nous occupent une porte pendant une rotation |
-| `crew_shift` | Sol | soft | ASSUMPTION | Fin de service équipe au sol 23:00 (simulé) |
-| `turnaround_next_leg` | Sol | soft | DATA | Prochain départ du même `TAIL_NUMBER` le même jour ; rotation calibrée par compagnie (médiane observée, janv.–juin 2015) |
+| Contrôle | Agent | Type | Valeur (source) |
+|---|---|---|---|
+| `runway_open` | ATC | hard | Pistes actives du classeur (4 grand hub → 1 non-hub) ; ligne météo → une piste fermée (hypothèse : le DOT ne dit pas où était la météo) |
+| `wake_separation` | ATC | hard | Table de sillage du classeur (FAA JO 7110.65 simplifiée) : Heavy→Large 5 NM, Heavy→Small 6, Super→Large 7…, 3 NM sinon. Conversion à 140 kt (hypothèse) |
+| `landing_slot_available` | ATC | hard | File « premier prêt, premier servi » des vols du fichier, espacés de max(sillage, intervalle de capacité). Capacité = `max_runway_ops_per_hour` du classeur, moitié en arrivées (hypothèse) |
+| `airport_curfew` | ATC | hard | Couvre-feux SNA / LGB (hors classeur, cités) |
+| `final_reserve_fuel` | Pilote | hard | Classeur : réserve finale **30 min**, carburant à l'arrivée **45 min** d'attente → **15 min** utilisables en attente (lecture prudente) |
+| `departure_feasible` | Pilote | hard | L'avion ne part pas avant d'être prêt (retard connu de l'avion entrant) |
+| `flight_crew_duty` | Pilote | hard | Classeur : **13 h** de service max depuis la prise de service (Part 117 simplifiée). Prise de service 1 h avant le premier départ de l'avion (hypothèse) ; Table B complète disponible en variante (`rules.CREW_DUTY_MODEL`) |
+| `gate_available` | Sol | hard | Portes du classeur × part de la compagnie dans les arrivées de l'aéroport (fichier) ; les `spare_gates_at_any_time` du classeur (3 ou 2) sont des portes `SPARE` toujours libres |
+| `gate_change_notice` | Sol | hard | Classeur : changement de porte décidé **≥ 20 min** avant l'arrivée |
+| `crew_shift` | Sol | soft | Classeur : service au sol de **8 h**, heures sup à **1,5×** ; prises de service 06:00 / 14:00 / 22:00 (hypothèse) |
+| `turnaround_next_leg` | Sol | soft | Rotation minimale du classeur à destination (45 min grand hub, 35 sinon) avant le vol suivant du même avion |
 
-Supprimé de la v0 : `max_holding` (pas de limite réglementaire, c'est le carburant qui limite) et `crew_overtime` sur le retard total (faux : dépend de l'heure d'arrivée vs fin de service).
+Consommation en attente pour les gains carburant : classeur, 2,4 t/h moyen-courrier, 6,5 t/h long-courrier.
+Après 3 tours sans accord, le solveur décide et **le log dit pourquoi** (`fallback_reason` : qui a refusé, quelles règles
+échouaient, plan retenu ou escalade).
+
+### Écarts au classeur, à annoncer dans la démo (règle du jeu : « Any limit you change must be stated »)
+1. **Rotation prévue ≠ rotation limite** : l'heure où l'avion est prêt utilise la rotation médiane observée de la
+   compagnie (calibrée janv.–juin, testée juil.–déc.), **jamais en dessous** du minimum du classeur, qui reste la limite.
+2. **Sillage** : la catégorie FAA B757 est conservée ; les paires du classeur sont identiques (vérifié par un test).
+3. **Couvre-feux** d'aéroport ajoutés (hors classeur).
+4. **Carburant** : « 45 min à l'arrivée » lu comme carburant total d'attente, donc 15 min utilisables au-dessus des
+   30 min de réserve (lecture prudente ; l'autre lecture donnerait 45 min).
+5. **Capacité** : la moitié des mouvements de piste par heure sont des arrivées.
+6. **Équipes au sol** : services de 8 h commençant à 06:00, 14:00, 22:00.
+7. **Portes de la compagnie** : portes de l'aéroport × part de la compagnie dans ses arrivées (fichier).
 
 ### Ce qui est connu au moment de décider (pas de fuite d'information)
 Les minutes `WEATHER_DELAY`, `LATE_AIRCRAFT_DELAY`, `AIRLINE_DELAY`… sont **attribuées par le DOT après le vol**, et
@@ -118,9 +136,8 @@ Ce que les règles utilisent à la place :
 - **Retard de l'avion entrant** : vol précédent du même avion (même immatriculation) arrivé en retard + rotation
   **calibrée par compagnie** (27 min Hawaiian → 54 min United, voir « Calibration ») (40 % des lignes). Sinon `LATE_AIRCRAFT_DELAY` sert d'approximation de l'heure d'arrivée prévue de l'avion
   entrant, et c'est signalé dans le log.
-- **Créneau d'atterrissage** : file d'arrivée reconstituée à partir des autres vols du fichier, espacés selon le
-  sillage FAA. Le trafic à l'heure, absent du fichier, charge chaque piste à 70 % (hypothèse, à caler sur les débits
-  FAA ASPM). Fermer une piste sature donc l'aéroport.
+- **Créneau d'atterrissage** : file d'arrivée reconstituée à partir des autres vols du fichier, espacés de
+  max(sillage FAA, intervalle de capacité du classeur). Fermer une piste retire sa part de capacité.
 - **Type d'avion** : registre FAA par immatriculation, enregistrement valide en 2015 (60 % des lignes). Sinon
   heuristique compagnie + distance. Le registre se télécharge sur
   `https://registry.faa.gov/database/ReleasableAircraft.zip` et se dézippe dans `data/raw/faa/`.
@@ -135,7 +152,7 @@ Ce que les règles utilisent à la place :
 
 **Évaluation :** `ARRIVAL_DELAY` / `DEPARTURE_DELAY` réels du DOT ne sont jamais donnés aux agents ; ils servent à mesurer l'erreur du modèle.
 
-## Résultats d'évaluation — run du 31/10/2026 (`atm eval --n 20 --seed 0`), modèle v2
+## Résultats d'évaluation — run du 31/10/2026 (`atm eval --n 20 --seed 0`), modèle v2 (avant le classeur officiel)
 Échantillon stratifié : 10 lignes météo + 10 late aircraft (le fichier est à 91 % late aircraft). Opus 5.5, effort `low`.
 v2 = file d'arrivée reconstituée, statu quo réaliste, règles FAA, Part 117, aucune minute de cause DOT en entrée.
 
@@ -198,33 +215,30 @@ v1 (avant recadrage) : consensus 20/20 en 2 tours, mais le statu quo était cons
 créneau utilisait `WEATHER_DELAY + LATE_AIRCRAFT_DELAY` connus après coup.
 
 ## Audit du statu quo sur 10 000 vols — règles seules, sans LLM (`atm audit --n 10000`)
-Tirage aléatoire de 10 000 vols perturbés (seed 0), ~1 min, 0 $. Pour chaque vol : le plan sans coordination
-enfreint-il une règle *hard* ? Intervalles de confiance à 95 % (Wilson). Sensibilité : 4 ou 8 portes par compagnie,
-porte prévue G1 ou tirée au hasard.
+Tirage aléatoire de 10 000 vols perturbés (seed 0), ~1 min, 0 $. Pour chaque vol : le plan sans coordination (partir
+dès que prêt, attendre en vol le créneau, garder la porte prévue) enfreint-il une règle *hard* ? Intervalles de
+confiance à 95 % (Wilson). **Limites du classeur officiel.**
 
-Chiffres avec la rotation calibrée par compagnie (avant calibration, rotation fixe 35 min, entre parenthèses).
-
-| Mesure | Hypothèse par défaut (4 portes, G1) | Plage (4 portes G1 → 8 portes au hasard) |
+| Mesure | Classeur (actuel) | Avant le classeur (4 portes/compagnie, 70 % de charge, réserve 45 min, Part 117) |
 |---|---|---|
-| Plan sans coordination qui enfreint une règle de sécurité | 18,1 % [17,3–18,8] (16,0 %) | **10,4 % → 18,1 %** (9,3 → 16,0 %) |
-| dont porte occupée | 15,7 % (13,8 %) | 7,7 % → 15,7 % |
-| dont temps de service équipage (FAA Part 117) dépassé | **2,7 %** [2,4–3,0] (2,4 %) | identique |
-| dont réserve carburant entamée | **0,5 %** [0,4–0,7] (0,5 %) | identique |
-| Aucun plan sûr, escalade vers un humain | 3,4 % [3,0–3,7] (2,9 %) | 2,8 → 3,4 % |
-| Vols avec attente en vol | 4,2 % (médiane 4 min) | identique |
-| Carburant économisé par le solveur | moyenne 16 kg/vol, **médiane 0** | ≈ identique |
-
-La rotation réelle étant plus longue que 35 min pour la plupart des compagnies, les avions sont prêts plus tard et les
-portes restent occupées plus longtemps : les conflits montent, l'équipage atteint sa limite plus souvent.
+| Plan sans coordination qui enfreint une règle de sécurité | **5,1 %** [4,7–5,6] | 18,1 % |
+| dont porte occupée | 2,6 % [2,3–3,0] | 15,7 % |
+| dont temps de service équipage (13 h) dépassé | **2,5 %** [2,2–2,9] | 2,7 % |
+| dont réserve carburant entamée | 0,1 % | 0,5 % |
+| Aucun plan sûr, escalade vers un humain | 2,6 % [2,3–2,9] | 3,4 % |
+| Vols avec attente en vol | 1,6 % (médiane 3 min) | 4,2 % |
+| Carburant économisé par le solveur | 2 kg/vol en moyenne, médiane 0 | 16 kg/vol |
 
 **Lecture honnête**
-- **Chiffre défendable : ~3 %** des vols perturbés avaient un plan non coordonné qui violait une règle FAA de temps de
-  service (2,7 %) ou de carburant (0,5 %), indépendamment des hypothèses de portes. Le temps de service repose sur l'hypothèse
-  « l'équipage suit l'avion » (changement d'équipage supposé là où l'horaire dépasserait déjà la limite).
-- **Conflits de porte : pas annonçables en l'état.** Ils se divisent presque par deux entre 4 et 8 portes, et se
-  concentrent sur les hubs (ATL 38 %, DFW 36 %, ORD 30 %) — justement là où « 4 portes par compagnie » est le plus faux
-  (Delta a plus de 100 portes à ATL). Le choix G1 ne pèse presque pas (−1,5 point en tirage aléatoire).
-- **L'attente en vol n'est pas le problème** sur ces données (4 % des vols, gain carburant médian nul).
+- Avec les limites officielles, **environ 1 vol perturbé sur 20** a un plan non coordonné illégal : moitié équipage
+  (13 h dépassées), moitié porte occupée. Les conflits de porte ne sont plus concentrés sur les hubs (ATL 5,7 %,
+  DFW 7,3 %, ORD 6,4 %) : avec 150 portes, l'hypothèse « 4 portes par compagnie » les gonflait.
+- **2,6 % des vols n'ont aucun plan sûr** (presque tous : l'équipage dépasserait 13 h quoi qu'on fasse) : ils
+  remontent au superviseur avec la raison. C'est le résultat le plus solide pour le pitch.
+- **L'attente en vol n'est pas le problème** sur ces données (1,6 % des vols, quelques minutes) : la valeur est dans
+  les portes et l'équipage, pas le carburant.
+- La variante `--planned-gate random` n'est plus une sensibilité valable : elle tire la porte prévue parmi les portes
+  montrées à l'agent, qui sont surtout les portes occupées (12,5 %, surestimé).
 
 ## Calibration des prédictions (`atm calibrate`, sans LLM)
 Ajustement sur **janvier–juin 2015**, test sur **juillet–décembre** (séparation dans le temps), uniquement sur les
@@ -257,16 +271,16 @@ uv run pytest             # tests hors ligne (agents factices, aucun coût)
 uv run atm run --row 0    # une négociation (appelle l'API), puis approbation du superviseur (--auto-approve sinon)
 uv run atm check-proposal --row 0 --delay 40 --holding 30   # contrôles déterministes en JSON, 0 $
 uv run atm eval --n 20    # banc d'éval (~0,05 $ par vol)
-uv run atm audit --n 10000 --gates 4 --planned-gate first   # audit du statu quo, sans LLM, 0 $
+uv run atm audit --n 10000   # audit du statu quo (limites du classeur), sans LLM, 0 $
 uv run atm calibrate      # recalibre la rotation et compare les modèles de prédiction, 0 $
 ```
 
 ## TODO
-- [x] Contraintes sourcées (sillage FAA, réserve 45 min, Part 117, couvre-feux, rotation via tail number)
+- [x] Contraintes sourcées (sillage FAA, couvre-feux, rotation via tail number)
 - [x] Choix déterministe de la contre-proposition, solveur et retenue au sol parmi les candidats
 - [x] Banc d'éval avec baselines ; statu quo réaliste (départ dès que prêt, attente en vol, porte prévue)
 - [x] File d'arrivée et portes reconstituées depuis les données ; type d'avion par registre FAA
-- [ ] Caler la charge de fond (70 %) sur les débits FAA ASPM par aéroport
+- [x] Limites du classeur officiel (pistes, capacité, portes, carburant, équipage, préavis de porte)
 - [ ] Proposer la retenue au sol même en cas de consensus immédiat (AA204)
 - [ ] Éval de précision sur un échantillon restreint aux vols dont le vol précédent est connu
 - [ ] Correspondances passagers, taxiways
