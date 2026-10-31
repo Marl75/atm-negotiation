@@ -12,11 +12,9 @@ from dataclasses import dataclass
 from .protocol import RunwaySlot
 from .rules import separation_min
 
-# ASSUMPTION: flights.csv only holds delayed flights, but on-time arrivals still use the runways. They load each
-# runway at 70% in normal operations (in runway-equivalents, so closing a runway does not make them disappear).
-# To calibrate with FAA ASPM arrival rates.
-BACKGROUND_LOAD = 0.7
-MIN_BANK_SHARE = 0.15  # ASSUMPTION: when saturated, flow control still releases 15% of capacity to the bank
+# Capacity from the challenge workbook (max_runway_ops_per_hour, active_runways), synthetic limits scaled from the
+# traffic in flights.csv. ASSUMPTION: half of the runway movements are arrivals.
+ARRIVAL_SHARE = 0.5
 WEATHER_SINGLE_RUNWAY_FACTOR = 1.5  # ASSUMPTION: one-runway airport in bad weather, spacing x1.5 (IMC)
 
 
@@ -28,22 +26,24 @@ class Arrival:
     category: str   # FAA wake category
 
 
-def spacing_factor(n_runways: int, n_open: int, weather: bool) -> float:
-    """How much wider than wake separation the bank's arrivals are spaced, given the background traffic."""
-    capacity = n_open / (WEATHER_SINGLE_RUNWAY_FACTOR if weather and n_runways == 1 else 1)
-    free = max(MIN_BANK_SHARE * capacity, capacity - BACKGROUND_LOAD * n_runways)
-    return n_open / free
+def arrival_interval_min(max_ops_per_hour: int, n_runways: int, weather: bool) -> float:
+    """Minimum minutes between two arrivals on one runway at the workbook's capacity.
+
+    Per-runway capacity is fixed: closing a runway removes its share (the airport's arrival rate drops).
+    """
+    per_runway_per_hour = ARRIVAL_SHARE * max_ops_per_hour / n_runways
+    return 60 / per_runway_per_hour * (WEATHER_SINGLE_RUNWAY_FACTOR if weather and n_runways == 1 else 1)
 
 
-def _earliest(last: tuple[int, str, str] | None, a: Arrival, factor: float) -> int:
+def _earliest(last: tuple[int, str, str] | None, a: Arrival, interval: float) -> int:
     if last is None:
         return a.ready_min
     t, cat, _ = last
-    return max(a.ready_min, math.ceil(t + separation_min(cat, a.category) * factor))
+    return max(a.ready_min, math.ceil(t + max(separation_min(cat, a.category), interval)))
 
 
 def sequence(bank: list[Arrival], own: Arrival, scheduled_min: int, runways: list[str],
-             factor: float) -> tuple[dict[str, RunwaySlot], list[tuple[Arrival, int]]]:
+             interval: float) -> tuple[dict[str, RunwaySlot], list[tuple[Arrival, int]]]:
     """Land every bank flight ready before ours on its earliest runway, then give ours its slot on each runway.
 
     Slots are returned as delay after our scheduled arrival.
@@ -53,10 +53,10 @@ def sequence(bank: list[Arrival], own: Arrival, scheduled_min: int, runways: lis
     for a in sorted(bank, key=lambda a: (a.ready_min, a.flight_id)):
         if (a.ready_min, a.flight_id) >= (own.ready_min, own.flight_id):
             break
-        rwy, t = min(((r, _earliest(last[r], a, factor)) for r in runways), key=lambda x: x[1])
+        rwy, t = min(((r, _earliest(last[r], a, interval)) for r in runways), key=lambda x: x[1])
         last[rwy] = (t, a.category, a.flight_id)
         landed.append((a, t))
-    slots = {r: RunwaySlot(earliest_delay_min=_earliest(last[r], own, factor) - scheduled_min,
+    slots = {r: RunwaySlot(earliest_delay_min=_earliest(last[r], own, interval) - scheduled_min,
                            leader_category=last[r][1] if last[r] else None,
                            leader_flight=last[r][2] if last[r] else None) for r in runways}
     return slots, landed

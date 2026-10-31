@@ -46,11 +46,23 @@ def negotiate(scenario: Disruption, context: OpsContext, initial: Proposal, agen
 
         picked = select_counter(scenario, context, evaluations, current=proposal)
         if picked is None:
+            reason = f"turn {rnd}: agents rejected without any counter-proposal"
             break
         proposal, proposer, turns[-1].next_selection = picked
+    else:
+        reason = f"no consensus after {MAX_ROUNDS} turns"
 
-    return _finish(Outcome(scenario=scenario, context=context, turns=turns, consensus=False,
-                           final=deterministic_resolution(scenario, context), resolved_by="deterministic_fallback"))
+    last = turns[-1]
+    objectors = [f"{e.role.value} ({', '.join(e.violated_constraints) or 'no constraint cited'})"
+                 for e in last.evaluations if not e.accept]
+    failed = [c.constraint for c in last.hard_checks if c.hard and not c.passed]
+    reason += (f"; last proposal rejected by {', '.join(objectors) or 'nobody'}"
+               + (f", failing hard checks {', '.join(failed)}" if failed else ""))
+    final = deterministic_resolution(scenario, context)
+    reason += ("; deterministic solver chose the earliest plan passing every hard check" if final else
+               "; no plan passes every hard check: escalated to the approach supervisor")
+    return _finish(Outcome(scenario=scenario, context=context, turns=turns, consensus=False, final=final,
+                           resolved_by="deterministic_fallback", fallback_reason=reason))
 
 
 def score(scenario: Disruption, context: OpsContext, p: Proposal) -> tuple[int, int, int, int]:

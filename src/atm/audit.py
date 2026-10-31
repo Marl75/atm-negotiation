@@ -4,7 +4,8 @@ For each disrupted flight: would the uncoordinated plan (naive_initial) break a 
 holding would it fly, and can the deterministic solver find a safe plan? This measures the problem the agents
 address on thousands of flights instead of the 20 of the LLM eval.
 
-Sensitivity: the gate pool and the planned gate are assumptions (context.GATES_PER_AIRLINE, planned gate = G1).
+Sensitivity: the gate pool (workbook gates x airline share by default; context.GATES_PER_AIRLINE overrides) and
+the planned gate (hash of the flight id by default) are assumptions.
 `gates_per_airline` and `planned_gate="random"` re-run the audit under other values, to show how much of the
 gate-conflict rate comes from those choices.
 """
@@ -22,7 +23,7 @@ from . import context as ctx_mod
 from .config import ROOT
 from .constraints import check_all
 from .data import build_scenario, disruptions, load_flights
-from .evaluate import HOLDING_FUEL_KG_PER_MIN
+from .rules import holding_burn_kg_per_min
 from .fallback import deterministic_resolution
 from .negotiation import naive_initial
 
@@ -30,7 +31,7 @@ AUDIT_DIR = ROOT / "eval" / "audit"
 _FLIGHTS: pd.DataFrame | None = None
 
 
-def _init(gates_per_airline: int) -> None:
+def _init(gates_per_airline: int | None) -> None:
     global _FLIGHTS
     ctx_mod.GATES_PER_AIRLINE = gates_per_airline  # per worker process, audit only
     _FLIGHTS = load_flights()
@@ -39,11 +40,13 @@ def _init(gates_per_airline: int) -> None:
 def audit_row(r: pd.Series, flights: pd.DataFrame, planned_gate: str = "first", seed: int = 0) -> dict:
     s, c = build_scenario(flights, r)
     if planned_gate == "random":
-        c = c.model_copy(update={"planned_gate": random.Random(f"{seed}{s.flight_id}").choice(c.gates)})
+        own = [g for g in c.gates if not g.startswith("SPARE")]
+        c = c.model_copy(update={"planned_gate": random.Random(f"{seed}{s.flight_id}").choice(own)})
     sq = naive_initial(s, c)
     checks = check_all(s, c, sq)
     fb = deterministic_resolution(s, c)
     return dict(flight_id=s.flight_id, cause=s.cause, destination=s.destination, airline=s.airline,
+                wake_category=c.wake_category, airport_class=c.airport_class,
                 known_delay_from_prev_leg=s.known_delay_source.startswith("previous leg"),
                 sq_hard_fails="|".join(x.constraint for x in checks if x.hard and not x.passed),
                 sq_soft_fails="|".join(x.constraint for x in checks if not x.hard and not x.passed),
@@ -90,7 +93,8 @@ def summarize(df: pd.DataFrame) -> dict:
     unsafe = df["sq_hard_fails"] != ""
     fails = df["sq_hard_fails"].str.split("|").explode()
     holding = df["sq_holding"] > 0
-    saved = (df["sq_holding"] - df["fb_holding"]).dropna().clip(lower=0) * HOLDING_FUEL_KG_PER_MIN
+    saved = ((df["sq_holding"] - df["fb_holding"]).clip(lower=0)
+             * df["wake_category"].map(holding_burn_kg_per_min)).dropna()
     return {
         "flights": len(df),
         "status_quo_unsafe": _rate(unsafe),
@@ -112,7 +116,7 @@ def summarize(df: pd.DataFrame) -> dict:
     }
 
 
-def run_audit(n: int = 10_000, seed: int = 0, workers: int = 8, gates_per_airline: int = 4,
+def run_audit(n: int = 10_000, seed: int = 0, workers: int = 8, gates_per_airline: int | None = None,
               planned_gate: str = "first", flights: pd.DataFrame | None = None):
     flights = load_flights() if flights is None else flights
     d = disruptions(flights)
@@ -129,7 +133,7 @@ def run_audit(n: int = 10_000, seed: int = 0, workers: int = 8, gates_per_airlin
             results = [x for part in ex.map(_audit_chunk, chunks) for x in part]
     df = pd.DataFrame(results)
     summary = summarize(df)
-    tag = f"n{len(df)}_g{gates_per_airline}_{planned_gate}"
+    tag = f"n{len(df)}_g{gates_per_airline or 'wb'}_{planned_gate}"
     out = AUDIT_DIR / f"{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}_{tag}"
     out.mkdir(parents=True, exist_ok=True)
     df.to_csv(out / "results.csv", index=False)

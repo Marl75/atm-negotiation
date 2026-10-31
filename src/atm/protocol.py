@@ -73,11 +73,14 @@ class OpsContext(BaseModel):
     """Operational facts the DOT file does not contain directly. Each field's basis is listed in context.py."""
 
     wake_category: str                  # own aircraft, FAA SUPER/HEAVY/B757/LARGE/SMALL
+    airport_class: str                  # workbook size class of the destination
     runways: list[str]
     closed_runways: list[str]
+    arrival_interval_min: float         # min minutes between arrivals on one runway at workbook capacity
     runway_slots: dict[str, RunwaySlot]  # open runways only
     earliest_arrival_delay_min: int     # best slot over open runways
     ready_arrival_delay_min: int        # arrival delay if the aircraft departs as soon as it is ready
+    decision_min: int                   # when the plan is agreed, minutes after the DOT date's midnight
     curfew: str | None                  # "HH:MM-HH:MM" no commercial arrivals at destination
     gates: list[str]
     planned_gate: str
@@ -85,8 +88,10 @@ class OpsContext(BaseModel):
     holding_fuel_available_min: int     # fuel above the regulatory reserve, in minutes of holding
     crew_fdp_end_min: int | None        # flight crew: end of max flight duty period, minutes after midnight
     crew_shift_end: str                 # "HH:MM", ground crew at destination
+    ground_shift_end_min: int           # same, minutes after the DOT date's midnight
     next_departure: str | None          # same tail number, same day
-    min_turnaround_min: int
+    min_turnaround_min: int             # workbook limit at destination
+    expected_turnaround_min: int        # forecast (calibrated per airline), >= the limit
 
 
 class Proposal(BaseModel):
@@ -164,5 +169,6 @@ class Outcome(BaseModel):
     consensus: bool
     final: Proposal | None
     resolved_by: str  # "consensus" | "deterministic_fallback"
+    fallback_reason: str | None = None  # why the deterministic fallback decided (rules of play: "log why")
     human_decision: HumanDecision | None = None  # None = pending (eval/audit never ask a human)
     _log_path: str | None = PrivateAttr(default=None)

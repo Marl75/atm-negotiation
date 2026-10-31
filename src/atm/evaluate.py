@@ -25,7 +25,9 @@ from .negotiation import naive_initial, negotiate
 from .protocol import Outcome, Proposal
 
 EVAL_DIR = ROOT / "eval"
-HOLDING_FUEL_KG_PER_MIN = 40  # ASSUMPTION: A320-class holding burn ~2.4 t/h; a ground hold burns ~0 (APU aside)
+# Holding burn by aircraft class from the challenge workbook (2.4 t/h narrowbody, 6.5 t/h widebody); a ground hold
+# burns ~0 (APU aside)
+from .rules import holding_burn_kg_per_min
 
 
 def sample(flights: pd.DataFrame, n: int, seed: int = 0) -> pd.DataFrame:
@@ -177,7 +179,8 @@ def summarize(df: pd.DataFrame) -> dict:
         "mean_holding_status_quo": mean(ok["status_quo_holding"]),
         "mean_holding_negotiated": mean(ok["final_holding"].dropna()),
         "mean_holding_fallback": mean(ok["fallback_holding"].dropna()),
-        "fuel_saved_kg_per_flight_vs_status_quo": mean(holding_saved * HOLDING_FUEL_KG_PER_MIN, 0),
+        "fuel_saved_kg_per_flight_vs_status_quo": mean(
+            holding_saved * ok.loc[holding_saved.index, "wake_category"].map(holding_burn_kg_per_min), 0),
         "mean_delay_negotiated": mean(ok["final_delay"].dropna()),
         "mean_delay_fallback": mean(ok["fallback_delay"].dropna()),
         "mean_soft_fails_negotiated": mean(ok["final_soft_fails"].dropna(), 2),

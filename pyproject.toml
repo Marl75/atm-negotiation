@@ -5,6 +5,7 @@ description = "Challenge #2 Airbus - multi-agent ATC / Pilot / Ground negotiatio
 requires-python = ">=3.12"
 dependencies = [
     "anthropic>=2.3.0",
+    "openpyxl>=3.1.5",
     "pandas>=3.1.0",
     "pydantic>=2.14.2",
     "python-dotenv>=1.2.4",

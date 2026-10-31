@@ -9,8 +9,7 @@ import pandas as pd
 
 from .aircraft import category_from_model, heuristic_category, tail_types
 from .config import DATA_DIR
-from .calibration import turnaround_min
-from .context import build_context
+from .context import build_context, expected_turnaround
 from .protocol import Disruption, DotDelayCauses, OpsContext
 from .rules import REPORT_BEFORE_FIRST_DEP_MIN, max_fdp_hours
 from .traffic import Arrival
@@ -58,13 +57,16 @@ def enrich(df: pd.DataFrame) -> pd.DataFrame:
                                 "AIRLINE": "P_AL", "FLIGHT_NUMBER": "P_FN"})
     m = left.merge(prev, on=[*TAIL_DAY, "ORIGIN_AIRPORT"])
     m = m[m["P_ARR"] < m["DEP_MIN"]].sort_values("P_ARR").groupby("index").tail(1).set_index("index")
-    turn = df.loc[m.index, "AIRLINE"].map(turnaround_min)  # calibrated per airline (calibration.py)
+    # expected turnaround: airline's calibrated median, never below the workbook minimum at the origin
+    pairs = df.loc[m.index, ["AIRLINE", "ORIGIN_AIRPORT"]]
+    turn = pd.Series([expected_turnaround(a, o) for a, o in zip(pairs["AIRLINE"], pairs["ORIGIN_AIRPORT"])],
+                     index=m.index)
     from_prev = (m["P_ARR"] + m["P_DELAY"] + turn - m["DEP_MIN"]).clip(lower=0)
     df["KNOWN_DEP_DELAY"] = from_prev.reindex(df.index).fillna(df["LATE_AIRCRAFT_DELAY"]).fillna(0).astype(int)
     df["KNOWN_DELAY_SRC"] = "LATE_AIRCRAFT_DELAY of the row (proxy for the inbound ETA; previous leg not in the file)"
     df.loc[m.index, "KNOWN_DELAY_SRC"] = ("previous leg " + m["P_AL"] + m["P_FN"].astype(str) + " landed "
                                           + m["P_DELAY"].astype(int).astype(str) + " min late, + "
-                                          + turn.astype(int).astype(str) + " min turnaround (airline median)")
+                                          + turn.astype(int).astype(str) + " min expected turnaround")
     df["READY_ARR"] = df["ARR_MIN"] + df["KNOWN_DEP_DELAY"]
 
     types = tail_types(frozenset(df["TAIL_NUMBER"].dropna().unique()))
@@ -73,6 +75,7 @@ def enrich(df: pd.DataFrame) -> pd.DataFrame:
     df["WAKE_CAT"] = df["AIRCRAFT_TYPE"].map(category_from_model, na_action="ignore").fillna(pd.Series(heuristic))
 
     df["DEST_ROWS"] = df.groupby("DESTINATION_AIRPORT")["DESTINATION_AIRPORT"].transform("size")
+    df["DEST_AIRLINE_SHARE"] = df.groupby(["DESTINATION_AIRPORT", "AIRLINE"])["AIRLINE"].transform("size") / df["DEST_ROWS"]
     return df
 
 
@@ -156,10 +159,6 @@ def arrival_bank(df_all: pd.DataFrame, row: pd.Series) -> list[Arrival]:
             for fid, (_, r) in zip(d.apply(_flight_id, axis=1), d.iterrows()) if fid != own]
 
 
-def n_runways(dest_rows: int) -> int:
-    return 3 if dest_rows > 8000 else 2 if dest_rows > 1000 else 1
-
-
 def crew_fdp_end(df_all: pd.DataFrame, row: pd.Series) -> int | None:
     """End of the flight duty period of the crew flying this leg, minutes after midnight.
 
@@ -184,5 +183,6 @@ def crew_fdp_end(df_all: pd.DataFrame, row: pd.Series) -> int | None:
 
 def build_scenario(df_all: pd.DataFrame, row: pd.Series) -> tuple[Disruption, OpsContext]:
     s = row_to_disruption(row)
-    return s, build_context(s, arrival_bank(df_all, row), n_runways(int(row["DEST_ROWS"])),
-                            next_departure_same_tail(df_all, row), crew_fdp_end(df_all, row))
+    return s, build_context(s, arrival_bank(df_all, row), None,
+                            next_departure_same_tail(df_all, row), crew_fdp_end(df_all, row),
+                            float(row["DEST_AIRLINE_SHARE"]))

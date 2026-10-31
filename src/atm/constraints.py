@@ -9,8 +9,10 @@ from __future__ import annotations
 
 from .context import PROVENANCE, _minutes, scheduled_arrival_min
 from .protocol import Basis, ConstraintResult, Disruption, OpsContext, Proposal, Role
-from .rules import (CURFEWS, FDP_SRC, FINAL_APPROACH_SPEED_KT, FINAL_RESERVE_MIN, FINAL_RESERVE_SRC, WAKE_SRC,
-                    in_curfew, required_nm)
+from . import rules as _rules
+from .rules import (CURFEWS, FDP_SRC, FDP_SRC_PART117, FINAL_APPROACH_SPEED_KT, FINAL_RESERVE_MIN, FINAL_RESERVE_SRC,
+                    GATE_CHANGE_NOTICE_MIN, GATE_NOTICE_SRC, GROUND_SRC, OVERTIME_FACTOR, WAKE_SRC, in_curfew,
+                    required_nm)
 
 
 def _clock(minutes: int) -> str:
@@ -64,7 +66,7 @@ def check_atc(s: Disruption, c: OpsContext, p: Proposal) -> list[ConstraintResul
 # --- Pilot / airline dispatch ------------------------------------------------
 
 def check_pilot(s: Disruption, c: OpsContext, p: Proposal) -> list[ConstraintResult]:
-    # Legal reserves (alternate + 45 min) are untouchable; only fuel above them can be spent holding.
+    # The final reserve is untouchable; only fuel above it can be spent holding.
     margin = c.holding_fuel_available_min - p.holding_min
     ground_hold = p.revised_arrival_delay_min - p.holding_min - c.ready_arrival_delay_min
     _, fuel_src = _ctx_basis("holding_fuel_available_min")
@@ -87,7 +89,8 @@ def check_pilot(s: Disruption, c: OpsContext, p: Proposal) -> list[ConstraintRes
         out.append(ConstraintResult(role=Role.PILOT, constraint="flight_crew_duty", hard=True,
                                     passed=arrival <= c.crew_fdp_end_min,
                                     detail=f"block-in {_clock(arrival)} vs max FDP end {_clock(c.crew_fdp_end_min)}",
-                                    basis=Basis.REGULATORY, source=FDP_SRC))
+                                    basis=Basis.REGULATORY,
+                                    source=FDP_SRC if _rules.CREW_DUTY_MODEL == "workbook" else FDP_SRC_PART117))
     return out  # TODO: passenger connections, turbulence on reroute
 
 
@@ -97,7 +100,7 @@ def check_ground(s: Disruption, c: OpsContext, p: Proposal) -> list[ConstraintRe
     arrival = new_arrival_min(s, p)
     busy = c.gates_busy_until_min.get(p.gate)
     gate_basis, gate_src = _ctx_basis("gates_busy_until_min")
-    crew_basis, crew_src = _ctx_basis("crew_shift_end")
+    done = arrival + c.min_turnaround_min  # ramp work on this aircraft ends after the minimum turnaround
     out = [
         ConstraintResult(role=Role.GROUND, constraint="gate_available", hard=True,
                          passed=busy is not None and arrival >= busy,
@@ -105,18 +108,27 @@ def check_ground(s: Disruption, c: OpsContext, p: Proposal) -> list[ConstraintRe
                                 f"{'unknown gate' if busy is None else f'busy until {_clock(busy)}' if busy else 'free'}",
                          basis=gate_basis, source=gate_src),
         ConstraintResult(role=Role.GROUND, constraint="crew_shift", hard=False,
-                         passed=arrival <= _minutes(c.crew_shift_end),
-                         detail=f"arrival {_clock(arrival)} vs ground crew shift end {c.crew_shift_end}",
-                         basis=crew_basis, source=crew_src),
+                         passed=done <= c.ground_shift_end_min,
+                         detail=f"turnaround work ends {_clock(done)} vs ground shift end {c.crew_shift_end}"
+                                + ("" if done <= c.ground_shift_end_min else
+                                   f": {done - c.ground_shift_end_min} min of overtime at {OVERTIME_FACTOR:g}x"),
+                         basis=Basis.DATA, source=GROUND_SRC),
     ]
+    if p.gate != c.planned_gate:
+        notice = arrival - c.decision_min
+        out.append(ConstraintResult(role=Role.GROUND, constraint="gate_change_notice", hard=True,
+                                    passed=notice >= GATE_CHANGE_NOTICE_MIN,
+                                    detail=f"gate {c.planned_gate} -> {p.gate} decided {notice} min before arrival "
+                                           f"(min {GATE_CHANGE_NOTICE_MIN})",
+                                    basis=Basis.DATA, source=GATE_NOTICE_SRC))
     if c.next_departure:
         ready = arrival + c.min_turnaround_min
-        nd_basis, nd_src = _ctx_basis("next_departure")
+        _, nd_src = _ctx_basis("next_departure")
         out.append(ConstraintResult(role=Role.GROUND, constraint="turnaround_next_leg", hard=False,
                                     passed=ready <= _minutes(c.next_departure),
-                                    detail=f"ready {_clock(ready)} ({c.min_turnaround_min} min turn) vs next "
-                                           f"departure {c.next_departure}",
-                                    basis=nd_basis, source=nd_src))
+                                    detail=f"ready {_clock(ready)} ({c.min_turnaround_min} min minimum turnaround) "
+                                           f"vs next departure {c.next_departure}",
+                                    basis=Basis.DATA, source=f"{nd_src}; turnaround limit: {_ctx_basis('min_turnaround_min')[1]}"))
     return out
 
 

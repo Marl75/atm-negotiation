@@ -7,7 +7,7 @@ from atm.fallback import deterministic_resolution
 from atm.negotiation import naive_initial, select_counter
 from atm.protocol import Basis, Disruption, Evaluation, OpsContext, Proposal, Role
 from atm.rules import max_fdp_hours, required_nm
-from atm.traffic import Arrival, spacing_factor
+from atm.traffic import Arrival, arrival_interval_min
 
 S = Disruption(
     flight_id="AA100-20150101", airline="AA", flight_number=100, tail_number="N123AA",
@@ -15,12 +15,13 @@ S = Disruption(
     scheduled_arrival="10:30", distance_nm=700.0, known_departure_delay_min=25, known_delay_source="test",
     cause="WEATHER",
 )
-C = build_context(S, next_departure="11:30")  # 2 runways, R1 closed by weather, no traffic: slot = ready = +25
+C = build_context(S, n_runways=2, next_departure="11:30")  # 2 runways, R1 closed by weather, no traffic: slot = ready = +25
 SCHED = 10 * 60 + 30
 
 
 def _p(**kw) -> Proposal:
-    base = dict(revised_arrival_delay_min=25, holding_min=0, slot_gap_min=2.5, runway="R2", gate="G2", rationale="t")
+    base = dict(revised_arrival_delay_min=25, holding_min=0, slot_gap_min=2.5, runway="R2", gate=C.planned_gate,
+                rationale="t")
     return Proposal(**(base | kw))
 
 
@@ -50,7 +51,11 @@ def test_faa_wake_rules_and_categories():
                                               "BOMBARDIER INC CL-600-2B19")] == ["B757", "HEAVY", "LARGE", "SUPER", "LARGE"]
 
 
-def test_part_117_table_b():
+def test_part_117_table_b(monkeypatch):
+    from atm import rules
+
+    assert max_fdp_hours(8 * 60, 9) == 13  # workbook default: 13 h from report time
+    monkeypatch.setattr(rules, "CREW_DUTY_MODEL", "part117")  # sensitivity variant
     assert max_fdp_hours(6 * 60, 2) == 13 and max_fdp_hours(23 * 60 + 30, 5) == 9 and max_fdp_hours(8 * 60, 9) == 11.5
 
 
@@ -68,7 +73,7 @@ def _bank(*arrivals) -> list[Arrival]:
 
 
 def test_queue_ahead_pushes_slot_and_sets_leader():
-    c = build_context(S, _bank(("UA", 20, "HEAVY"), ("DL", 22, "LARGE"), ("UA", 24, "HEAVY")))
+    c = build_context(S, _bank(("UA", 20, "HEAVY"), ("DL", 22, "LARGE"), ("UA", 24, "HEAVY")), n_runways=2)
     slot = c.runway_slots["R2"]
     assert slot.earliest_delay_min > 25 and slot.leader_category == "HEAVY" and slot.leader_flight == "X2"
     # 1.5 min at 140 kt = 3.5 NM < 5 NM required for a LARGE behind a HEAVY
@@ -77,16 +82,21 @@ def test_queue_ahead_pushes_slot_and_sets_leader():
 
 
 def test_closing_a_runway_saturates_capacity():
-    assert spacing_factor(2, 1, weather=True) > 2 * spacing_factor(2, 2, weather=False)
+    # workbook capacity per runway is fixed: one-runway weather spacing widens, and the interval follows ops/hour
+    assert arrival_interval_min(36, 1, weather=True) == 1.5 * arrival_interval_min(36, 1, weather=False)
+    assert arrival_interval_min(90, 4, weather=False) == 60 / (0.5 * 90 / 4)
 
 
 def test_closed_runway_and_early_slot_are_caught():
     assert {"runway_open", "landing_slot_available"} <= failed(_p(runway="R1", revised_arrival_delay_min=10))
 
 
-def test_status_quo_waits_in_the_air_and_can_fail_on_its_own():
+def test_status_quo_waits_in_the_air_and_can_fail_on_its_own(monkeypatch):
+    from atm import context
+
+    monkeypatch.setattr(context, "GATES_PER_AIRLINE", 1)  # one airline gate: the arrivals ahead hold it
     s = S.model_copy(update={"cause": "LATE_AIRCRAFT"})
-    c = build_context(s, _bank(*[("AA", 20 + i, "LARGE") for i in range(6)]))
+    c = build_context(s, _bank(*[("AA", 20 + i, "LARGE") for i in range(6)]), n_runways=2)
     sq = naive_initial(s, c)
     assert sq.holding_min == sq.revised_arrival_delay_min - 25 > 0 and sq.gate == c.planned_gate
     assert "gate_available" in failed(sq, s, c)  # same-airline arrivals just ahead still hold the planned gate

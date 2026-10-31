@@ -22,7 +22,7 @@ def test_wilson_interval():
 def test_audit_runs_and_restores_gate_assumption():
     df, summary, _ = run_audit(n=30, workers=1, gates_per_airline=8, planned_gate="random", flights=FLIGHTS)
     assert summary["flights"] == 30 and summary["status_quo_unsafe"]["n"] == 30
-    assert ctx_mod.GATES_PER_AIRLINE == 4  # sensitivity value does not leak into the model
+    assert ctx_mod.GATES_PER_AIRLINE is None  # sensitivity value does not leak into the model
 
 
 def test_solver_never_worse_than_status_quo_on_holding():
