@@ -73,62 +73,73 @@ ul, ol { margin: 0; padding-left: 20px; display: grid; gap: 6px }
   <header style="display:grid;gap:12px">
     <h3>Autonomous SG 2026 · Airbus track · Challenge #2</h3>
     <h1>ATM Negotiation — script du pitch (3 min)</h1>
-    <p class="lede">Texte à dire en anglais, indications de démo en français. Version simplifiée : environ 280 mots, phrases courtes, trois chiffres.
-      À voix posée, ça tient en 2 min 30 s, avec de la marge pour respirer. Tous les chiffres viennent des runs du 31/10 avec les limites du classeur officiel.</p>
+    <p class="lede">Même texte que les notes du deck (9 slides), orienté impact. Texte à dire en anglais, indications en français.
+      Environ 404 mots, 2 min 50 à voix posée.</p>
     <div class="meta"><span>Utilisateur : <b>approach supervisor, DFW TRACON</b></span><span>Vol de démo : <b>MQ3439 MOB→DFW</b></span><span>Cas d'échec : <b>WN1347 BWI→FLL</b></span></div>
   </header>
 
   <section class="strips" aria-label="Déroulé minuté">
     <article class="strip">
-      <div class="time">0:00–0:20<small>Problème</small></div>
-      <div class="body">
-        <p class="say">When a flight is disrupted, three teams must agree: the tower, the airline and the ground crew. Today they do it by phone, and each one sees only its own rules. In the 2015 US flight data, one disrupted flight in twenty had a plan that broke a rule.</p>
-        <p class="show">Slide titre : une ligne de flights.csv + « 5.1 % of disrupted flights: uncoordinated plan breaks a hard rule (10,000-flight audit) ».</p>
-      </div>
+      <div class="time">0:00<small>Slide 1 · couverture</small></div>
+      <div class="body"><p class="show">Laisser la couverture pendant que le jury s'installe. Ne pas la lire, passer directement au problème.</p></div>
     </article>
-
     <article class="strip">
-      <div class="time">0:20–0:40<small>Ce qu'on a construit</small></div>
+      <div class="time">0:00–0:25<small>Slide 2 · problème</small></div>
       <div class="body">
-        <p class="say">So we gave each team its own AI agent. The three agents negotiate in writing, in three rounds at most. But the AI never decides what is legal: fixed rules from the challenge workbook do. And a human supervisor approves the final plan.</p>
-        <p class="show">Schéma 3 agents → checks déterministes → solveur → superviseur. Montrer « LLM proposes / rules decide / human approves ».</p>
+        <p class="say">When a flight runs late, three teams have to agree: the tower, the airline and the ramp. Today they do it by phone, and each one only checks its own rules. In the 2015 US data, that let through about eighteen thousand flights a year with a plan that broke a rule.</p>
+        <p class="show">Le chiffre ≈18 000 et les trois questions : tour, compagnie, piste.</p>
       </div>
     </article>
-
     <article class="strip">
-      <div class="time">0:40–1:20<small>Démo</small></div>
+      <div class="time">0:25–0:45<small>Slide 3 · ce qui change</small></div>
       <div class="body">
-        <p class="say">Here is a real flight: Envoy 3439 to Dallas, 45 minutes late. Round one: the ground agent says no, because the gate is still busy when we land. Round two: it proposes another gate. All three agree, all the rules pass, and the supervisor approves.</p>
-        <p class="say">And if I try to force a bad plan, like forty minutes of holding, the rules refuse it instantly and say why.</p>
-        <p class="show">Viewer : replay MQ3439, tour 1 (FAIL gate_available, source), tour 2 (3 × accept). Puis terminal :</p>
-        <code class="cmd">uv run atm check-proposal --row 356 --holding 40 --delay 70 --gap 1.0</code>
+        <p class="say">With my tool, the problem is found before take-off, not on the taxiway. Three AI agents, one per team, agree in writing in seconds. Fixed rules check every plan against all three teams’ limits. And the supervisor decides, with a written reason and a full record.</p>
+        <p class="show">Tableau aujourd'hui / avec l'outil.</p>
       </div>
     </article>
-
+    <article class="strip">
+      <div class="time">0:45–1:05<small>Slide 4 · comment ça marche</small></div>
+      <div class="body">
+        <p class="say">Here is how it works. Plain code builds the picture of the flight from the challenge workbook. Then three separate AI agents negotiate, each seeing only its own team’s data. Code checks every proposal against fixed rules and keeps the safest. If they don’t agree within three rounds, a solver decides and says why. The supervisor has the last word.</p>
+        <p class="show">Les 4 étapes : CODE, IA, CODE, HUMAIN.</p>
+      </div>
+    </article>
+    <article class="strip">
+      <div class="time">1:05–1:35<small>Slide 5 · un vrai vol</small></div>
+      <div class="body">
+        <p class="say">Here is a real flight: Envoy 3439 to Dallas, 45 minutes late. Round one: the ramp agent sees that the gate will still be busy when the flight lands. Round two: it moves the flight to another gate, the others agree, every rule passes, and the supervisor approves. Nobody waits on the taxiway. And if I try to force a bad plan, the rules refuse it instantly and say why.</p>
+        <p class="show">Basculer sur le viewer (MQ3439), puis le terminal : <code>uv run atm check-proposal --row 356 --holding 40 --gap 1.0</code>. Si la démo plante, rester sur la slide.</p>
+      </div>
+    </article>
     <article class="strip fail">
-      <div class="time">1:20–1:45<small>Où ça casse</small></div>
+      <div class="time">1:35–1:55<small>Slide 6 · pas de bonne réponse</small></div>
       <div class="body">
-        <p class="say">Sometimes there is no legal plan. Here, the crew would work past its 13-hour limit, whatever we do. So the system does not force anything: it hands the flight to the supervisor and explains why.</p>
-        <p class="show">Log WN1347 : « no plan passes every hard check: escalated to the approach supervisor ». Puis tableau fuite : 21 % de créneaux exactement égaux au retard réel sur les lignes à fuite (33 vols), 3 % sur les lignes propres (222 vols).</p>
+        <p class="say">Sometimes there is no good answer. Here, whatever the plan, the crew would work past its 13-hour limit. The tool does not force anything: it sends the flight to the supervisor with the reason, before take-off, so the airline has time to find a fresh crew. In the data, that is about nine thousand flights a year.</p>
+        <p class="show">WN1347 et « Why it matters ».</p>
       </div>
     </article>
-
     <article class="strip num">
-      <div class="time">1:45–2:15<small>Évaluation</small></div>
+      <div class="time">1:55–2:25<small>Slide 7 · ce que ça vaut</small></div>
       <div class="body">
-        <p class="say">We tested 255 flights. No unsafe plan was ever kept. On a normal day, nine flights in ten need nothing. On a busy day, the agents fix gate conflicts and avoid holding in the air. It costs a few cents per flight.</p>
-        <p class="show">Une slide, trois blocs : sécurité (0 / 0), vols ordinaires vs sous tension, calibration −14 % (juil.–déc.).</p>
+        <p class="say">So what is it worth? For the supervisor, one checked plan with a reason instead of a round of calls. For the airline, no plan ever breaks crew or fuel limits. For the ramp, gate conflicts are fixed hours ahead. For passengers, the wait happens at the gate, not circling in the air. On a normal day, nothing changes. And it costs a few cents per flight.</p>
+        <p class="show">Les 4 cartes, une par bénéficiaire.</p>
       </div>
     </article>
-
     <article class="strip">
-      <div class="time">2:15–2:35<small>Impact et limites</small></div>
+      <div class="time">2:25–2:35<small>Slide 8 · écarts au classeur</small></div>
       <div class="body">
-        <p class="say">So on Monday morning, the supervisor gets a checked plan and a clear reason, instead of a round of phone calls. The changes we made to the workbook are on this slide. Next step: real data from one airline. Thank you.</p>
-        <p class="show">Slide « Écarts au classeur » (obligatoire, règle du jeu) : liste des 7 écarts du README.</p>
+        <p class="say">The limits come from the challenge workbook; the few changes I made are listed here.</p>
+        <p class="show">Montrer la liste sans la lire (exigée par les règles du jeu).</p>
       </div>
     </article>
-    <p class="total">Total parlé : environ 280 mots. Si tu es en retard, saute la phrase « It costs a few cents per flight ».</p>
+    <article class="strip">
+      <div class="time">2:35–2:50<small>Slide 9 · conclusion</small></div>
+      <div class="body">
+        <p class="say">So on Monday morning, the supervisor gets a checked plan and a clear reason, instead of a round of phone calls. The first step is shadow mode with one airline’s real gate and crew data. Thank you.</p>
+        <p class="show">Monday morning et les 3 prochaines étapes.</p>
+      </div>
+    </article>
+    <p class="total">Total parlé : environ 404 mots, 2 min 50 à voix posée. Si tu es en retard, raccourcis la slide 7 à « On a normal day, nothing changes. It costs a few cents per flight. »</p>
   </section>
 
   <section class="panel">
@@ -142,7 +153,10 @@ ul, ol { margin: 0; padding-left: 20px; display: grid; gap: 6px }
         <tr><td>Acceptations dangereuses dans son domaine</td><td class="n">0</td><td>plus de 450 vols vérifiés dans les logs</td></tr>
         <tr><td>Vols ordinaires : plan gardé au tour 1</td><td class="n">89 % (82–96)</td><td>150 vols sans fuite, 3 échantillons</td></tr>
         <tr><td>Vols sous tension : escalades</td><td class="n">49 / 105 (31–57 %)</td><td>105 vols sous tension, 3 échantillons</td></tr>
-        <tr><td>Erreur retard départ après calibration</td><td class="n">16.7 → 14.4 min (−14 %)</td><td>60 542 vols, juil.–déc., modèle adopté</td></tr>
+        <tr><td>Vols par an avec un plan illégal (5,1 %)</td><td class="n">≈ 18 000</td><td>5,1 % de 358 774 vols retardés (données 2015 fournies)</td></tr>
+        <tr><td>Vols par an sans aucun plan légal (2,6 %)</td><td class="n">≈ 9 000</td><td>même base</td></tr>
+        <tr><td>Tours avant accord</td><td class="n">1,1 / 1,7 (max 3)</td><td>vols ordinaires / sous tension</td></tr>
+        <tr><td>« Sait quand l'avion sera prêt à ~15 min près »</td><td class="n">14,4 min d'erreur moyenne</td><td>contre 16,7 avec une rotation fixe de 35 min ; pas une comparaison avec les outils actuels</td></tr>
         <tr><td>Coût / latence</td><td class="n">$0.04–0.09 · 8–14 s</td><td>par vol</td></tr>
       </tbody>
     </table></div>
@@ -168,6 +182,12 @@ ul, ol { margin: 0; padding-left: 20px; display: grid; gap: 6px }
         <p>Une colonne du DOT est remplie après le vol et expliquait nos créneaux « parfaits » : 21 % de correspondances
           exactes sur ces lignes contre 3 % sur les lignes propres. On l'a isolée et on ne mesure la précision que sur les
           lignes propres. La rotation calibrée par compagnie réduit l'erreur de 14 % sur des mois jamais vus.</p></div>
+      <div><b>« Where does 18,000 come from? »</b>
+        <p>5,1 % des 358 774 vols retardés du fichier fourni ont un plan non coordonné illégal (audit par les règles sur
+          10 000 vols, fourchette 4,7–5,6 %, soit 17 000 à 20 000). C'est le fichier du challenge, pas tout le trafic américain.</p></div>
+      <div><b>« Within 15 minutes, compared to what? »</b>
+        <p>Comparé à une prévision naïve (rotation fixe de 35 min) : 14,4 min d'erreur moyenne au lieu de 16,7, sur des mois
+          jamais vus. Je n'ai pas de données sur les outils actuels des compagnies, donc je ne prétends pas les battre.</p></div>
       <div><b>« Les résultats sont-ils stables ? »</b>
         <p>Environ 10 % des vols changent d'un run à l'autre (mesuré). Les garanties de sécurité, elles, viennent des
           règles et ne varient pas.</p></div>
