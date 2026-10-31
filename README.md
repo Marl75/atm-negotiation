@@ -152,6 +152,38 @@ Ce que les règles utilisent à la place :
 
 **Évaluation :** `ARRIVAL_DELAY` / `DEPARTURE_DELAY` réels du DOT ne sont jamais donnés aux agents ; ils servent à mesurer l'erreur du modèle.
 
+## Résultats finaux — limites du classeur officiel (31/10/2026)
+`atm eval --population prev_leg --n 50` et `atm eval --population stress --n 35` (seed 0), Opus 5.5, effort `low`.
+**Sans fuite** = vols dont le retard entrant vient du vol précédent. **Sous tension** = vols où le plan non coordonné
+enfreint une règle ou attend en vol, repérés par les règles seules sur un tirage aléatoire.
+
+| Métrique | Sans fuite (50 vols) | Sous tension (35 vols) |
+|---|---|---|
+| Statu quo (sans coordination) qui enfreint une règle de sécurité | 2/50 (équipage ×2) | 29/35 (équipage ×20, porte ×10) |
+| Solutions finales sûres quand un plan sûr existe | **48/48** | **15/15** |
+| Aucun plan sûr → escalade au superviseur, avec la raison dans le log | 2/50 | **20/35** (toutes : équipage > 13 h) |
+| Consensus des 3 agents en ≤ 3 tours | 96 % (1,02 tour en moyenne) | 43 % (1,63 tour) ; le reste = escalades |
+| Acceptations d'un plan dangereux **dans le domaine de l'agent** | **0** | **0** |
+| Acceptations hors domaine (voulues : chaque agent ne voit que son domaine), rattrapées par les règles | 6 | 71 |
+| Qui a écrit la solution retenue | statu quo accepté 96 % | Sol 26 %, retenue au sol 14 %, Pilote 3 %, escalade 57 % |
+| Attente en vol (statu quo → négocié) | 0 → 0 min | 0,5 → 0 min (51 kg de carburant/vol) |
+| Erreur du créneau prédit vs retard réel | 37,9 min | 14,5 min (lignes sans fuite) |
+| Coût / latence | 2,06 $ (0,04 $/vol), 8 s/vol | 2,98 $ (0,09 $/vol), 14 s/vol |
+
+**Lecture honnête**
+- **Sécurité : 0 plan dangereux retenu, 0 acceptation dangereuse dans le domaine de l'agent** sur les 85 vols, comme
+  sur les 224 vols des runs précédents.
+- **Au quotidien, rien à négocier** : 96 % des vols ordinaires gardent le plan prévu, accepté au tour 1.
+- **Dans les vols sous tension, la négociation sert vraiment** sur les cas solubles : l'agent sol trouve une porte
+  libre (9 vols), l'orchestrateur fait voter une retenue au sol (5), le pilote corrige (1).
+- **Le cas d'échec dominant est l'équipage** : 20 vols sur 35 n'ont aucun plan légal parce que l'équipage dépasserait
+  13 h quoi qu'on fasse. Le système ne force rien, il escalade avec la raison. La limite de 13 h du classeur est plus
+  stricte que la Table B Part 117 le matin (14 h) : le taux dépend de cette règle simplifiée.
+- **Le statu quo des vols sans fuite est presque toujours sûr** (2/50) : ce n'est pas un échantillon où le système peut
+  briller, c'est le contrôle que le système ne dégrade rien.
+- Limites : un seul tirage par population (budget), LLM non déterministe (~10 % des vols changent d'un run à l'autre,
+  mesuré plus tôt), limites d'aéroport synthétiques du classeur.
+
 ## Résultats d'évaluation — run du 31/10/2026 (`atm eval --n 20 --seed 0`), modèle v2 (avant le classeur officiel)
 Échantillon stratifié : 10 lignes météo + 10 late aircraft (le fichier est à 91 % late aircraft). Opus 5.5, effort `low`.
 v2 = file d'arrivée reconstituée, statu quo réaliste, règles FAA, Part 117, aucune minute de cause DOT en entrée.
