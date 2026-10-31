@@ -1,0 +1,450 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Evaluation Scorecard</title>
+<!--
+  One-page scorecard of an `atm eval` run. Works offline: run `python3 viewer/bundle.py`, then open this file.
+  Headline numbers are recomputed from results.csv (per flight) so each one can be traced to rows;
+  summary.md is shown in full at the bottom. Missing columns hide their tile instead of breaking the page.
+-->
+<style>
+:root {
+  --bg: #0b1016; --panel: #121a23; --panel-2: #18222e; --line: #243241; --line-2: #2f4052;
+  --text: #e6edf3; --muted: #8b9bb0; --faint: #5d6e82;
+  --ok: #3fb97f; --ok-bg: rgba(63,185,127,.13); --bad: #f0605a; --bad-bg: rgba(240,96,90,.13);
+  --warn: #e7a83a; --warn-bg: rgba(231,168,58,.14); --accent: #5aa9f0; --accent-bg: rgba(90,169,240,.13);
+  --series-1: #3987e5; --series-2: #d95926; --neutral: #6b7a8c; --grid: #1f2b38;
+  --shadow: 0 1px 0 rgba(255,255,255,.03) inset, 0 8px 24px rgba(0,0,0,.25);
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --sans: ui-sans-serif, -apple-system, "Segoe UI", Inter, Roboto, sans-serif;
+  color-scheme: dark;
+}
+:root[data-theme="light"] {
+  --bg: #f4f6f9; --panel: #ffffff; --panel-2: #f0f3f7; --line: #dde3ea; --line-2: #c9d2dc;
+  --text: #15202b; --muted: #556476; --faint: #8794a3;
+  --ok: #1d8a57; --ok-bg: rgba(29,138,87,.10); --bad: #c9362f; --bad-bg: rgba(201,54,47,.09);
+  --warn: #a8670a; --warn-bg: rgba(168,103,10,.10); --accent: #1f6fc0; --accent-bg: rgba(31,111,192,.09);
+  --series-1: #2a78d6; --series-2: #eb6834; --neutral: #9aa5b1; --grid: #e8ecf1;
+  --shadow: 0 1px 2px rgba(20,30,45,.06), 0 4px 14px rgba(20,30,45,.05);
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 var(--sans); }
+button, select { font: inherit; color: inherit; }
+a { color: var(--accent); }
+.mono { font-family: var(--mono); }
+.wrap { max-width: 1180px; margin: 0 auto; padding: 0 28px 80px; }
+
+.topbar { position: sticky; top: 0; z-index: 5; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+.topbar .wrap { display: flex; align-items: center; gap: 12px; height: 58px; padding-bottom: 0; }
+.topbar h1 { margin: 0; font-size: 15px; letter-spacing: .02em; display: flex; gap: 8px; align-items: center; }
+.topbar .sp { flex: 1; }
+.btn { background: var(--panel); border: 1px solid var(--line-2); border-radius: 8px; padding: 6px 11px; cursor: pointer; text-decoration: none; display: inline-flex; gap: 6px; align-items: center; }
+.btn:hover { border-color: var(--accent); }
+.btn svg { width: 14px; height: 14px; }
+.icon { width: 26px; height: 26px; border-radius: 7px; display: inline-grid; place-items: center; background: var(--accent-bg); color: var(--accent); }
+.icon svg { width: 15px; height: 15px; }
+
+.hero { margin-top: 26px; display: flex; gap: 24px; align-items: flex-end; flex-wrap: wrap; }
+.hero h2 { margin: 0; font-size: 26px; letter-spacing: -.01em; }
+.hero p { margin: 6px 0 0; color: var(--muted); max-width: 720px; }
+.hero .meta { margin-left: auto; text-align: right; color: var(--faint); font-family: var(--mono); font-size: 12px; }
+
+.section-title { margin: 34px 0 12px; font-size: 11px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--faint); display: flex; gap: 10px; align-items: center; }
+.section-title::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+
+.tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.tile { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; box-shadow: var(--shadow); position: relative; overflow: hidden; }
+.tile .lbl { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); font-weight: 600; }
+.tile .big { font-family: var(--mono); font-size: clamp(26px, 3.2vw, 38px); font-weight: 700; line-height: 1.1; margin-top: 6px; letter-spacing: -.02em; white-space: nowrap; }
+.tile .big small { font-size: 16px; color: var(--muted); font-weight: 500; letter-spacing: 0; }
+.tile .sub { color: var(--muted); font-size: 12.5px; margin-top: 6px; }
+.tile .tag { margin-left: 4px; vertical-align: 1px; }
+.tile.good { border-color: color-mix(in srgb, var(--ok) 40%, var(--line)); } .tile.good .big { color: var(--ok); }
+.tile.bad .big { color: var(--bad); }
+.tile.warn .big { color: var(--warn); }
+.arrow { color: var(--faint); font-weight: 400; margin: 0 4px; }
+
+.pill { display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; padding: 2px 7px; border-radius: 999px; border: 1px solid var(--line-2); color: var(--muted); white-space: nowrap; }
+.pill.ok { color: var(--ok); background: var(--ok-bg); border-color: transparent; }
+.pill.bad { color: var(--bad); background: var(--bad-bg); border-color: transparent; }
+.pill.warn { color: var(--warn); background: var(--warn-bg); border-color: transparent; }
+.basis { font-size: 9.5px; font-weight: 700; letter-spacing: .06em; padding: 1px 5px; border-radius: 4px; border: 1px dashed var(--warn); color: var(--warn); }
+
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; box-shadow: var(--shadow); min-width: 0; }
+.card h3 { margin: 0; font-size: 14px; }
+.card .desc { color: var(--muted); font-size: 12.5px; margin: 4px 0 10px; }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+.legend span { display: inline-flex; gap: 6px; align-items: center; }
+.sw { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+.chart text { font-family: var(--mono); font-size: 11px; fill: var(--muted); }
+.chart .lab { fill: var(--text); }
+.chart .hit { fill: transparent; cursor: default; }
+.chart-note { color: var(--faint); font-size: 11.5px; margin-top: 8px; }
+
+table.cmp { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.cmp th, table.cmp td { padding: 9px 12px; text-align: right; border-bottom: 1px solid var(--line); }
+table.cmp th:first-child, table.cmp td:first-child { text-align: left; }
+table.cmp th { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; }
+table.cmp td { font-family: var(--mono); }
+table.cmp td:first-child { font-family: var(--sans); color: var(--muted); }
+table.cmp .best { color: var(--ok); font-weight: 700; }
+table.cmp .worst { color: var(--bad); font-weight: 700; }
+table.cmp .na { color: var(--faint); }
+
+.fails { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.fail { background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--bad); border-radius: 12px; padding: 14px 16px; box-shadow: var(--shadow); }
+.fail .kind { font-size: 10.5px; text-transform: uppercase; letter-spacing: .07em; color: var(--bad); font-weight: 700; }
+.fail .fid { font-family: var(--mono); font-weight: 700; font-size: 16px; margin-top: 4px; }
+.fail .nums { display: flex; gap: 16px; margin: 8px 0; font-family: var(--mono); }
+.fail .nums div small { display: block; font-family: var(--sans); font-size: 10.5px; color: var(--faint); text-transform: uppercase; letter-spacing: .05em; }
+.fail .nums b { font-size: 18px; }
+.fail p { margin: 0; color: var(--muted); font-size: 12.5px; }
+.fail a { font-size: 12px; display: inline-block; margin-top: 8px; }
+
+.bars { display: grid; gap: 7px; }
+.bar-row { display: grid; grid-template-columns: 150px 1fr 48px; gap: 10px; align-items: center; font-size: 12.5px; }
+.bar-row .name { font-family: var(--mono); color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bar-track { height: 10px; background: var(--panel-2); border-radius: 0 4px 4px 0; }
+.bar-fill { height: 100%; background: var(--series-1); border-radius: 0 4px 4px 0; min-width: 2px; }
+.bar-row .v { font-family: var(--mono); text-align: right; color: var(--muted); }
+
+.honest { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 6px 18px; }
+.honest li { margin: 9px 0; color: var(--text); }
+.honest li b { color: var(--warn); font-weight: 600; }
+.honest ul { padding-left: 18px; margin: 8px 0; }
+
+.table-wrap { overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; }
+table.rows { border-collapse: collapse; width: 100%; font-size: 12.5px; white-space: nowrap; }
+table.rows th { position: sticky; top: 0; background: var(--panel-2); text-align: left; font-size: 10.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); padding: 8px 10px; font-weight: 600; cursor: pointer; user-select: none; }
+table.rows th:hover { color: var(--text); }
+table.rows td { padding: 7px 10px; border-top: 1px solid var(--line); font-family: var(--mono); }
+table.rows td.num { text-align: right; }
+table.rows tr:hover td { background: var(--panel-2); }
+
+details.all summary { cursor: pointer; color: var(--muted); font-size: 12.5px; padding: 8px 0; }
+.kv { display: grid; grid-template-columns: minmax(220px, auto) 1fr; gap: 4px 16px; font-size: 12.5px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 16px; }
+.kv .k { font-family: var(--mono); color: var(--muted); font-size: 12px; }
+.kv .v { font-family: var(--mono); word-break: break-word; }
+
+#tip { position: fixed; pointer-events: none; z-index: 40; background: var(--panel); border: 1px solid var(--line-2); border-radius: 9px; padding: 8px 11px; font-size: 12px; box-shadow: 0 12px 30px rgba(0,0,0,.35); display: none; max-width: 280px; }
+#tip b { font-family: var(--mono); }
+#tip .r { display: flex; justify-content: space-between; gap: 14px; color: var(--muted); }
+#tip .r span:last-child { color: var(--text); font-family: var(--mono); }
+.empty { margin: 80px auto; max-width: 520px; text-align: center; color: var(--muted); }
+.empty code { font-family: var(--mono); background: var(--panel-2); padding: 2px 6px; border-radius: 5px; color: var(--text); }
+
+@media (max-width: 980px) {
+  .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .grid2, .fails { grid-template-columns: 1fr; }
+}
+@media (max-width: 600px) {
+  .wrap { padding: 0 16px 60px; }
+  .tiles { grid-template-columns: 1fr; }
+  .hero .meta { margin-left: 0; text-align: left; }
+  .hide-sm { display: none; }
+  .bar-row { grid-template-columns: 110px 1fr 40px; }
+  .kv { grid-template-columns: 1fr; }
+  .topbar h1 { font-size: 0; gap: 0; } #run { min-width: 0; flex: 1; max-width: 100%; } .topbar .sp { display: none; }
+  .cmp-wrap { overflow-x: auto; } table.cmp { min-width: 520px; }
+}
+@media print {
+  .topbar { position: static; } .btn, #theme { display: none; }
+  .tile, .card, .fail { break-inside: avoid; box-shadow: none; }
+}
+</style>
+</head>
+<body>
+<div class="topbar"><div class="wrap">
+  <h1><span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></span>Evaluation Scorecard</h1>
+  <span class="sp"></span>
+  <select class="btn" id="run" title="Eval run"></select>
+  <a class="btn hide-sm" href="index.html">Negotiation replay →</a>
+  <button class="btn" id="theme" aria-label="Toggle theme"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button>
+</div></div>
+<div class="wrap" id="view"></div>
+<div id="tip"></div>
+
+<script src="eval_data.js" onerror="window.ATM_EVALS = window.ATM_EVALS || []"></script>
+<script>
+(() => {
+"use strict";
+const $ = s => document.querySelector(s);
+const esc = v => String(v ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const store = { get(k) { try { return localStorage.getItem(k); } catch { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch {} } };
+const num = v => (v === "" || v === undefined || v === null || isNaN(+v)) ? null : +v;
+const bool = v => v === true || v === "True" || v === "true" || v === "1";
+const has = (rows, col) => rows.length && col in rows[0];
+const mean = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : null;
+const r1 = v => v === null ? "—" : (Math.round(v * 10) / 10).toString();
+const fmtStamp = s => { const m = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})/.exec(s || ""); return m ? `${m[3]}/${m[2]} ${m[4]}:${m[5]}Z` : s; };
+const replayLink = (id, stamp) => `index.html#flight=${encodeURIComponent(id)}@${stamp}`;
+
+const runs = (window.ATM_EVALS || []).slice().sort((a, b) => b.stamp.localeCompare(a.stamp));
+const isLive = r => (r.summary.llm_calls || 0) > 0;
+
+function runLabel(r) {
+  return `${fmtStamp(r.stamp)} · n=${r.summary.cases ?? r.rows.length}${isLive(r) ? ` · ${r.summary.llm_calls} LLM calls` : " · offline (no LLM)"}`;
+}
+
+/* ---------- tiles ---------- */
+function tile(cls, lbl, big, sub, tag = "") {
+  return `<div class="tile ${cls}"><div class="lbl">${lbl}</div><div class="big">${big}</div><div class="sub">${sub}${tag ? `<span class="tag">${tag}</span>` : ""}</div></div>`;
+}
+
+/* ---------- charts (plain SVG) ---------- */
+function dumbbell(rows) {
+  // Airborne holding per flight: status quo vs negotiated plan, only flights where either is non-zero
+  const pts = rows.map(r => ({ id: r.flight_id, sq: num(r.status_quo_holding), neg: num(r.final_holding), fb: num(r.fallback_holding) }))
+    .filter(p => p.sq !== null && p.neg !== null && (p.sq > 0 || p.neg > 0))
+    .sort((a, b) => (b.sq - b.neg) - (a.sq - a.neg));
+  const zero = rows.length - pts.length;
+  if (!pts.length) return `<div class="desc">No flight needed airborne holding in either plan.</div>`;
+  const W = 520, L = 128, R = 40, rowH = 30, T = 22, H = T + pts.length * rowH + 26;
+  const max = Math.max(...pts.map(p => Math.max(p.sq, p.neg)), 10);
+  const x = v => L + (v / max) * (W - L - R);
+  const ticks = [0, max / 2, max].map(v => Math.round(v));
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Airborne holding per flight, status quo versus negotiated">`;
+  ticks.forEach(t => { s += `<line x1="${x(t)}" x2="${x(t)}" y1="${T - 6}" y2="${H - 22}" stroke="var(--grid)" stroke-width="1"/><text x="${x(t)}" y="${H - 6}" text-anchor="middle">${t} min</text>`; });
+  pts.forEach((p, i) => {
+    const y = T + i * rowH + rowH / 2;
+    s += `<text class="lab" x="${L - 12}" y="${y + 4}" text-anchor="end">${esc(p.id.split("-")[0])}</text>`;
+    s += `<line x1="${x(Math.min(p.sq, p.neg))}" x2="${x(Math.max(p.sq, p.neg))}" y1="${y}" y2="${y}" stroke="var(--neutral)" stroke-width="2"/>`;
+    s += `<circle cx="${x(p.sq)}" cy="${y}" r="5" fill="var(--neutral)" stroke="var(--panel)" stroke-width="2"/>`;
+    s += `<circle cx="${x(p.neg)}" cy="${y}" r="5" fill="var(--series-1)" stroke="var(--panel)" stroke-width="2"/>`;
+    if (p.sq - p.neg > 0) s += `<text x="${x(p.sq) + 10}" y="${y + 4}">−${p.sq - p.neg}</text>`;
+    s += `<rect class="hit" x="0" y="${y - rowH / 2}" width="${W}" height="${rowH}" data-tip="${esc(JSON.stringify({ t: p.id, "Status quo hold": p.sq + " min", "Negotiated hold": p.neg + " min", "Fallback solver hold": p.fb === null ? "—" : p.fb + " min" }))}"/>`;
+  });
+  s += `</svg>`;
+  return `<div class="legend"><span><i class="sw" style="background:var(--neutral)"></i>Status quo (hold in the air)</span><span><i class="sw" style="background:var(--series-1)"></i>Negotiated plan</span></div>
+    <div class="chart">${s}</div><div class="chart-note">${zero} other flight${zero === 1 ? "" : "s"}: 0 min in both.</div>`;
+}
+
+function scatter(rows) {
+  // Our slot model vs the DOT recorded arrival delay. Proxy rows leak part of the answer, so they are told apart.
+  const pts = rows.map(r => ({ id: r.flight_id, x: num(r.slot_delay), y: num(r.real_arrival_delay), prev: bool(r.known_delay_from_prev_leg) }))
+    .filter(p => p.x !== null && p.y !== null);
+  if (!pts.length) return "";
+  const W = 520, H = 330, L = 44, B = 34, T = 10, R = 14;
+  const max = Math.ceil(Math.max(...pts.map(p => Math.max(p.x, p.y)), 60) / 50) * 50;
+  const x = v => L + v / max * (W - L - R), y = v => H - B - v / max * (H - B - T);
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Predicted slot delay versus real arrival delay">`;
+  for (let t = 0; t <= max; t += max / 5) {
+    s += `<line x1="${L}" x2="${W - R}" y1="${y(t)}" y2="${y(t)}" stroke="var(--grid)"/><text x="${L - 6}" y="${y(t) + 4}" text-anchor="end">${t}</text>`;
+    s += `<text x="${x(t)}" y="${H - B + 16}" text-anchor="middle">${t}</text>`;
+  }
+  s += `<line x1="${x(0)}" y1="${y(0)}" x2="${x(max)}" y2="${y(max)}" stroke="var(--muted)" stroke-width="1"/>`;
+  s += `<text x="${x(max) - 4}" y="${y(max) + 14}" text-anchor="end">perfect prediction</text>`;
+  s += `<text x="${(L + W - R) / 2}" y="${H - 2}" text-anchor="middle">model: earliest landing slot (min late)</text>`;
+  s += `<text transform="translate(11 ${(T + H - B) / 2}) rotate(-90)" text-anchor="middle">DOT real arrival delay (min)</text>`;
+  const worst = pts.slice().sort((a, b) => Math.abs(b.y - b.x) - Math.abs(a.y - a.x)).slice(0, 2).map(p => p.id);
+  pts.forEach(p => {
+    const c = p.prev ? "var(--series-1)" : "var(--series-2)";
+    s += `<circle cx="${x(p.x)}" cy="${y(p.y)}" r="5" fill="${c}" stroke="var(--panel)" stroke-width="2"/>`;
+    if (worst.includes(p.id)) s += `<text class="lab" x="${x(p.x) + 9}" y="${y(p.y) + 4}">${esc(p.id.split("-")[0])}</text>`;
+    s += `<circle class="hit" cx="${x(p.x)}" cy="${y(p.y)}" r="11" data-tip="${esc(JSON.stringify({ t: p.id, "Model slot": p.x + " min", "Real arrival": p.y + " min", "Error": (p.x - p.y > 0 ? "+" : "") + (p.x - p.y) + " min", "Known delay from": p.prev ? "previous leg (clean)" : "LATE_AIRCRAFT proxy (leaks)" }))}"/>`;
+  });
+  s += `</svg>`;
+  return `<div class="legend"><span><i class="sw" style="background:var(--series-1)"></i>Known delay from previous leg (clean)</span><span><i class="sw" style="background:var(--series-2)"></i>LATE_AIRCRAFT proxy (leaks the answer)</span></div><div class="chart">${s}</div>`;
+}
+
+function bars(obj, fmt = v => v) {
+  const e = Object.entries(obj || {}).sort((a, b) => b[1] - a[1]);
+  if (!e.length) return "";
+  const max = Math.max(...e.map(x => x[1]));
+  return `<div class="bars">${e.map(([k, v]) => `<div class="bar-row"><span class="name" title="${esc(k)}">${esc(k)}</span><div class="bar-track"><div class="bar-fill" style="width:${v / max * 100}%"></div></div><span class="v">${fmt(v)}</span></div>`).join("")}</div>`;
+}
+
+/* ---------- page ---------- */
+function render(run) {
+  const S = run.summary, all = run.rows;
+  const ok = all.filter(r => !r.error);
+  const solved = ok.filter(r => !bool(r.escalated));
+  const n = ok.length;
+  let h = "";
+
+  // hero
+  h += `<section class="hero"><div><h2>${esc(run.title || "Evaluation")}: ${n} disrupted flights</h2>
+    <p>Stratified sample of DOT 2015 rows (weather + late aircraft). Three LLM agents negotiate; a deterministic checker decides what is legal. Compared with the status quo and the non-AI solver alone.</p></div>
+    <div class="meta">run ${esc(fmtStamp(run.stamp))}<br>${isLive(run) ? `${esc(S.llm_calls)} LLM calls · $${esc(S.cost_usd)}` : "offline run: scripted agents, no LLM"}</div></section>`;
+
+  // tiles
+  const t = [];
+  if (has(ok, "final_hard_ok")) {
+    const safe = solved.filter(r => bool(r.final_hard_ok)).length;
+    t.push(tile(safe === solved.length ? "good" : "bad", "Final plans safe", `${safe}<small>/${solved.length}</small>`, "every hard check passed: wake separation, fuel reserve, gate, crew duty"));
+  }
+  if (has(ok, "status_quo_hard_fails")) {
+    const bad = ok.filter(r => r.status_quo_hard_fails);
+    const why = {}; bad.forEach(r => r.status_quo_hard_fails.split("|").forEach(c => why[c] = (why[c] || 0) + 1));
+    t.push(tile(bad.length ? "bad" : "", "Status quo unsafe", `${bad.length}<small>/${n}</small>`, bad.length ? "without coordination: " + Object.entries(why).map(([k, v]) => `${esc(k)} ×${v}`).join(", ") : "no hard failure without coordination"));
+  }
+  if (has(ok, "unsafe_accepts")) {
+    const u = ok.reduce((a, r) => a + (num(r.unsafe_accepts) || 0), 0);
+    const allSafe = has(ok, "final_hard_ok") && solved.every(r => bool(r.final_hard_ok));
+    t.push(tile(u ? "warn" : "good", "Unsafe “yes” caught", `${u}`, !u ? "no agent accepted an unsafe plan"
+      : `times an agent accepted a plan that failed a hard check; ${allSafe ? "the rule checker overruled every one" : "flagged by the rule checker"}`));
+  }
+  if (has(ok, "consensus")) {
+    const c3 = ok.filter(r => bool(r.consensus) && (num(r.rounds) || 99) <= 3).length;
+    const fb = ok.filter(r => r.resolved_by === "deterministic_fallback").length;
+    t.push(tile(c3 === n ? "good" : "", "Consensus ≤ 3 rounds", `${c3}<small>/${n}</small>`, `mean ${r1(mean(ok.map(r => num(r.rounds)).filter(v => v !== null)))} rounds · ${fb} fallback${fb === 1 ? "" : "s"} · ${all.length - n} error${all.length - n === 1 ? "" : "s"}`));
+  }
+  if (has(ok, "status_quo_holding") && has(ok, "final_holding")) {
+    const sq = mean(ok.map(r => num(r.status_quo_holding)).filter(v => v !== null)), ng = mean(ok.map(r => num(r.final_holding)).filter(v => v !== null));
+    t.push(tile("good", "Airborne holding / flight", `${r1(sq)}<span class="arrow">→</span>${r1(ng)}<small> min</small>`, "status quo → negotiated. Delay is taken on the ground at origin instead"));
+  }
+  if (S.fuel_saved_kg_per_flight_vs_status_quo !== undefined) {
+    t.push(tile("good", "Fuel saved / flight", `${esc(S.fuel_saved_kg_per_flight_vs_status_quo)}<small> kg</small>`, "holding avoided × 40 kg/min (A320-class burn)", '<span class="basis">ASSUMPTION</span>'));
+  }
+  if (S.cost_usd !== undefined && isLive(run)) {
+    t.push(tile("", "Cost per flight", `$${(S.cost_usd / (S.cases || n)).toFixed(2)}`, `${esc(S.llm_calls)} LLM calls for ${esc(S.cases || n)} flights`));
+  }
+  if (has(ok, "latency_s")) {
+    t.push(tile("", "Time to a plan", `${r1(mean(ok.map(r => num(r.latency_s)).filter(v => v !== null)))}<small> s</small>`, "mean per flight, all three agents + checks"));
+  }
+  h += `<div class="section-title">Headline</div><div class="tiles">${t.join("")}</div>`;
+
+  // comparison table
+  const col = (k, f = mean) => has(ok, k) ? f(ok.map(r => num(r[k])).filter(v => v !== null)) : null;
+  const safeCount = (k) => has(ok, k) ? ok.filter(r => !r[k]).length : null;
+  const lines = [
+    ["Safe plans (all hard checks)", has(ok, "final_hard_ok") ? solved.filter(r => bool(r.final_hard_ok)).length + "/" + solved.length : null,
+      has(ok, "fallback_delay") ? ok.filter(r => num(r.fallback_delay) !== null).length + "/" + n : null, has(ok, "status_quo_hard_fails") ? safeCount("status_quo_hard_fails") + "/" + n : null, null, "safe"],
+    ["Airborne holding (min, mean)", col("final_holding"), col("fallback_holding"), col("status_quo_holding"), null, "low"],
+    ["Arrival delay (min, mean)", col("final_delay"), col("fallback_delay"), null, col("real_arrival_delay"), ""],
+    ["Soft costs: turnaround, crew shift (mean)", col("final_soft_fails"), col("fallback_soft_fails"), null, null, "low"],
+  ];
+  const cell = (v, row, i) => {
+    if (v === null || v === undefined) return `<td class="na">—</td>`;
+    let cls = "";
+    if (row[5] === "low") { const vals = row.slice(1, 4).filter(x => typeof x === "number"); if (vals.length > 1 && v === Math.min(...vals)) cls = "best"; if (vals.length > 1 && v === Math.max(...vals) && Math.max(...vals) !== Math.min(...vals)) cls = "worst"; }
+    if (row[5] === "safe" && typeof v === "string") { const [a, b] = v.split("/").map(Number); cls = a === b ? "best" : "worst"; }
+    return `<td class="${cls}">${typeof v === "number" ? r1(v) : esc(v)}</td>`;
+  };
+  h += `<div class="section-title">Negotiated vs baselines</div>
+    <div class="card"><div class="cmp-wrap"><table class="cmp"><tr><th></th><th>Negotiated (3 agents)</th><th>Deterministic solver only</th><th>Status quo (no coordination)</th><th>DOT reality</th></tr>
+    ${lines.map(row => `<tr><td>${row[0]}</td>${[1, 2, 3, 4].map(i => cell(row[i], row, i)).join("")}</tr>`).join("")}</table></div>
+    <div class="chart-note">“DOT reality” is not a baseline we beat: our slot model under-predicts real delays (see below). The solver alone is the fallback used when agents do not converge.</div></div>`;
+
+  // charts
+  h += `<div class="section-title">Where it helps · where the model is wrong</div><div class="grid2">
+    <div class="card"><h3>Airborne holding avoided</h3><div class="desc">Per flight. Holding burns fuel; the negotiated plan moves the wait to the ground before departure.</div>${dumbbell(ok)}</div>
+    <div class="card"><h3>Our arrival model vs what really happened</h3><div class="desc">Points below the line: we predicted less delay than the DOT recorded (causes we do not see: airline, system).</div>${scatter(ok)}</div>
+  </div>`;
+
+  // failure cases
+  const fails = [];
+  const errA = ok.filter(r => num(r.slot_delay) !== null && num(r.real_arrival_delay) !== null)
+    .map(r => ({ r, e: num(r.real_arrival_delay) - num(r.slot_delay) })).sort((a, b) => Math.abs(b.e) - Math.abs(a.e));
+  if (errA[0]) { const { r, e } = errA[0]; fails.push({ kind: "Arrival badly under-predicted", r, a: ["Our slot", r.slot_delay + " min"], b: ["Real", r.real_arrival_delay + " min"], txt: `Off by ${Math.abs(e)} min. The slot only sees weather and the late inbound aircraft, not airline or ATC-system delays.` }); }
+  const errN = ok.filter(r => num(r.pred_next_dep_delay) !== null && num(r.real_next_dep_delay) !== null)
+    .map(r => ({ r, e: num(r.real_next_dep_delay) - num(r.pred_next_dep_delay) })).sort((a, b) => Math.abs(b.e) - Math.abs(a.e));
+  if (errN[0]) { const { r, e } = errN[0]; fails.push({ kind: "Knock-on delay missed", r, a: ["Predicted next leg", r1(num(r.pred_next_dep_delay)) + " min"], b: ["Real next leg", r1(num(r.real_next_dep_delay)) + " min"], txt: `Off by ${Math.abs(e)} min. The turnaround model only sees our arrival, not other causes on the next leg.` }); }
+  const caught = ok.filter(r => (num(r.unsafe_accepts) || 0) > 0).sort((a, b) => num(b.unsafe_accepts) - num(a.unsafe_accepts));
+  if (caught[0]) { const r = caught[0]; fails.push({ kind: "Agents said yes to an unsafe plan", r, a: ["Unsafe accepts", r.unsafe_accepts], b: ["Final plan safe", bool(r.final_hard_ok) ? "yes" : "no"], txt: `Status quo failed ${esc((r.status_quo_hard_fails || "—").replace(/\|/g, ", "))}; agents accepted it anyway, and the deterministic checker blocked it.` }); }
+  all.filter(r => r.error).slice(0, 1).forEach(r => fails.push({ kind: "Run error", r, a: ["Error", ""], b: ["", ""], txt: esc(r.error) }));
+  if (fails.length) h += `<div class="section-title">Failure cases, shown on purpose</div><div class="fails">${fails.slice(0, 3).map(f => `
+    <div class="fail"><div class="kind">${f.kind}</div><div class="fid">${esc(f.r.flight_id)} <span style="color:var(--faint);font-weight:400;font-size:12px">${esc(f.r.origin || "")}→${esc(f.r.destination || "")}</span></div>
+      <div class="nums"><div><small>${f.a[0]}</small><b>${esc(f.a[1])}</b></div><div><small>${f.b[0]}</small><b>${esc(f.b[1])}</b></div></div>
+      <p>${f.txt}</p><a href="${replayLink(f.r.flight_id, run.stamp)}">Replay this negotiation →</a></div>`).join("")}</div>`;
+
+  // who decided
+  if (S.final_author_share || S.selection_picks) {
+    h += `<div class="section-title">Who authored the adopted plan</div><div class="grid2">
+      ${S.final_author_share ? `<div class="card"><h3>Author of the final plan</h3><div class="desc">Share of flights. ATC = the opening proposal was accepted as is.</div>${bars(S.final_author_share, v => Math.round(v * 100) + "%")}</div>` : ""}
+      ${S.selection_picks ? `<div class="card"><h3>Counter-proposals picked by the selector</h3><div class="desc">Deterministic choice among the agents’ counters (fewest hard fails, then soft, holding, delay).</div>${bars(S.selection_picks)}</div>` : ""}
+    </div>`;
+  }
+
+  // honesty notes, built from the data
+  const notes = [];
+  if (has(ok, "known_delay_from_prev_leg")) {
+    const prev = ok.filter(r => bool(r.known_delay_from_prev_leg)).length;
+    notes.push(`<b>Accuracy vs reality is only claimable on ${prev}/${n} flights.</b> For the other ${n - prev}, the known delay comes from <span class="mono">LATE_AIRCRAFT_DELAY</span>, which is part of the recorded answer.`);
+  }
+  if (S.fuel_saved_kg_per_flight_vs_status_quo !== undefined) notes.push(`<b>Fuel figures are an assumption</b> (40 kg/min of holding); the DOT file has no fuel data.`);
+  notes.push(`<b>Small sample:</b> n=${n}, one seed${S.cases ? "" : ""}; LLM outputs are not deterministic, so a rerun can differ.`);
+  if (has(ok, "final_author")) {
+    const opening = ok.filter(r => r.final_author === "ATC").length;
+    if (opening) notes.push(`<b>${opening}/${n} plans are the opening proposal, accepted as is.</b> On those flights the agents verified rather than negotiated.`);
+  }
+  notes.push(`Parts of the operational context (runway closure, ground-crew shift, holding fuel) are <b>simulated</b>; each check in the replay is tagged REGULATORY, DATA or ASSUMPTION.`);
+  h += `<div class="section-title">Read before quoting these numbers</div><div class="honest"><ul>${notes.map(x => `<li>${x}</li>`).join("")}</ul></div>`;
+
+  // per-flight table
+  const cols = [
+    ["flight_id", "Flight"], ["cause", "Cause"], ["origin", "From"], ["destination", "To"],
+    ["status_quo_holding", "SQ hold", 1], ["status_quo_hard_fails", "SQ hard fails"],
+    ["rounds", "Rounds", 1], ["final_author", "Plan by"], ["unsafe_accepts", "Unsafe yes", 1], ["final_hard_ok", "Safe"],
+    ["final_holding", "Hold", 1], ["final_delay", "Delay", 1], ["final_soft_fails", "Soft", 1],
+    ["slot_delay", "Model slot", 1], ["real_arrival_delay", "Real arr.", 1], ["latency_s", "Sec.", 1],
+  ].filter(c => has(all, c[0]));
+  h += `<div class="section-title">Every flight (${all.length})</div><div class="table-wrap"><table class="rows" id="rows"><thead><tr>${cols.map((c, i) => `<th data-i="${i}">${c[1]}</th>`).join("")}<th></th></tr></thead><tbody></tbody></table></div>`;
+
+  // full summary
+  h += `<details class="all"><summary>All metrics from summary.md</summary><div class="kv">${Object.entries(S).map(([k, v]) => `<div class="k">${esc(k)}</div><div class="v">${esc(typeof v === "object" ? JSON.stringify(v) : v)}</div>`).join("")}</div></details>`;
+
+  $("#view").innerHTML = h;
+  renderRows(all, cols, run.stamp, null, 1);
+  document.querySelectorAll("#rows th[data-i]").forEach(th => th.onclick = () => {
+    const i = +th.dataset.i, dir = th.dataset.dir === "1" ? -1 : 1;
+    document.querySelectorAll("#rows th").forEach(x => delete x.dataset.dir); th.dataset.dir = dir;
+    renderRows(all, cols, run.stamp, i, dir);
+  });
+}
+
+function renderRows(all, cols, stamp, sortI, dir) {
+  const rows = all.slice();
+  if (sortI !== null) {
+    const [k, , isNum] = cols[sortI];
+    rows.sort((a, b) => isNum ? ((num(a[k]) ?? -1e9) - (num(b[k]) ?? -1e9)) * dir : String(a[k]).localeCompare(String(b[k])) * dir);
+  }
+  $("#rows tbody").innerHTML = rows.map(r => `<tr>${cols.map(([k, , isNum]) => {
+    let v = r[k];
+    if (k === "final_hard_ok") v = bool(v) ? '<span class="pill ok">✓</span>' : '<span class="pill bad">✗</span>';
+    else if (k === "status_quo_hard_fails") v = v ? `<span style="color:var(--bad)">${esc(v.replace(/\|/g, ", "))}</span>` : '<span style="color:var(--faint)">—</span>';
+    else if (k === "unsafe_accepts") v = +v ? `<span style="color:var(--warn)">${esc(v)}</span>` : esc(v);
+    else v = v === "" ? '<span style="color:var(--faint)">—</span>' : esc(v);
+    return `<td class="${isNum ? "num" : ""}">${v}</td>`;
+  }).join("")}<td><a href="${replayLink(r.flight_id, stamp)}">replay</a></td></tr>`).join("");
+}
+
+/* ---------- tooltip ---------- */
+document.addEventListener("mousemove", e => {
+  const t = e.target.closest?.("[data-tip]"), tip = $("#tip");
+  if (!t) { tip.style.display = "none"; return; }
+  const d = JSON.parse(t.dataset.tip);
+  tip.innerHTML = `<b>${esc(d.t)}</b>${Object.entries(d).filter(([k]) => k !== "t").map(([k, v]) => `<div class="r"><span>${esc(k)}</span><span>${esc(v)}</span></div>`).join("")}`;
+  tip.style.display = "block";
+  const w = tip.offsetWidth, hgt = tip.offsetHeight;
+  tip.style.left = Math.min(e.clientX + 14, innerWidth - w - 8) + "px";
+  tip.style.top = (e.clientY + 14 + hgt > innerHeight ? e.clientY - hgt - 10 : e.clientY + 14) + "px";
+});
+
+/* ---------- boot ---------- */
+const savedTheme = store.get("atm-theme"); if (savedTheme) document.documentElement.dataset.theme = savedTheme;
+$("#theme").onclick = () => {
+  const t = document.documentElement.dataset.theme === "light" ? "dark" : "light";
+  document.documentElement.dataset.theme = t; store.set("atm-theme", t);
+};
+if (!runs.length) {
+  $("#run").style.display = "none";
+  $("#view").innerHTML = `<div class="empty"><h2>No eval runs loaded</h2><p>Run <code>uv run atm eval --n 20</code>, then <code>python3 viewer/bundle.py</code>, and reload.</p></div>`;
+  return;
+}
+$("#run").innerHTML = runs.map((r, i) => `<option value="${i}">${esc(runLabel(r))}</option>`).join("");
+const want = location.hash.slice(1);
+let idx = runs.findIndex(r => r.stamp === want);
+if (idx < 0) idx = Math.max(0, runs.findIndex(isLive));
+$("#run").value = idx;
+$("#run").onchange = () => { const r = runs[+$("#run").value]; try { history.replaceState(null, "", "#" + r.stamp); } catch {} render(r); };
+render(runs[idx]);
+})();
+</script>
+</body>
+</html>

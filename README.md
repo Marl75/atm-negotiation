@@ -1,4 +1,36 @@
-# Challenge #2 — Négociation multi-agents ATC / Pilote / Sol
+# ATM Negotiation — Airbus challenge #2
+
+> **For judges (English overview).** The rest of this README is in French.
+
+Three independent AI agents (ATC, pilot, ground ops) negotiate one disrupted flight from the 2015 DOT data in at most
+three turns. Each agent is a separate Claude call that sees only its own domain. **Deterministic rules from the
+challenge workbook decide what is legal**; a solver decides when the agents disagree and logs why; the approach
+supervisor approves. See [`SUBMISSION.md`](SUBMISSION.md) for the full description and [`results/`](results/) for the
+evidence.
+
+| | Result |
+|---|---|
+| Uncoordinated plans breaking a hard rule (rules-only audit, 10,000 flights) | **5.1 %** [4.7–5.6]; 2.6 % have no legal plan |
+| Safe plans kept (255 evaluated flights, 3 samples × 2 populations) | **200 / 200** |
+| Agents accepting a plan that breaks a rule of their own domain (450+ flights checked) | **0** |
+| Ordinary flights: consensus within 3 turns (planned slot kept as is: 89 %) | 96 % (92–100 %) |
+| Flights under stress: fixed by agents / escalated to a human (crew > 13 h) | 54 % / 31–57 % |
+| Departure-delay error after per-airline turnaround calibration (Jul–Dec, unseen) | 16.7 → **14.0 min** |
+| Cost and latency | $0.04–0.09, 9–14 s per flight |
+
+```bash
+uv sync && cp .env.example .env            # add ANTHROPIC_API_KEY
+# put the provided flights.csv in data/raw/
+uv run pytest -q                           # offline tests, no API cost
+uv run atm audit --n 10000                 # rules-only audit, no API cost
+uv run atm run --row 356                   # one negotiation, then the supervisor approves (API)
+uv run atm check-proposal --row 356 --holding 40 --gap 1.0   # try to break the rules, no API cost
+```
+Offline viewer: run `python3 viewer/bundle.py`, then open `viewer/index.html` (replay) and `viewer/scorecard.html`.
+
+---
+
+## Challenge #2 — Négociation multi-agents ATC / Pilote / Sol
 
 Autonomous SG 2026 · Airbus Track · 31 oct 2026, NUS
 

@@ -1,0 +1,49 @@
+<title>Workbook Deviations Slide</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans+Condensed:wght@500;700&display=swap">
+<style>
+/* Layout: one 16:9 slide, scaled to the viewport width; 7 numbered deviations in two columns. */
+:root {
+  --bg: #dfe6ea; --slide: #f7fbf6; --ink: #17222b; --muted: #55636e; --rule: #c9d3da; --accent: #1d6f8c; --tag: #e7f1f5;
+  --display: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0b1115; --slide: #172129; --ink: #e3eaee; --muted: #9aa9b3; --rule: #2c3a44; --accent: #6cc0dc; --tag: #1d3340; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0b1115; --slide: #172129; --ink: #e3eaee; --muted: #9aa9b3; --rule: #2c3a44; --accent: #6cc0dc; --tag: #1d3340; color-scheme: dark }
+* { box-sizing: border-box }
+body { background: var(--bg); color: var(--ink); font-family: var(--display) }
+.stage { padding-block: 24px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)) }
+.slide { width: 100%; max-width: 1280px; aspect-ratio: 16 / 9; margin: 0 auto; background: var(--slide);
+  border: 1px solid var(--rule); border-left: 10px solid var(--accent); container-type: inline-size;
+  padding: 4cqw 4.5cqw; display: grid; grid-template-rows: auto auto 1fr auto; gap: 1.6cqw }
+.eyebrow { font: 600 1.15cqw var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--muted) }
+h1 { margin: 0; font-size: 3.6cqw; line-height: 1.05; text-wrap: balance }
+h1 span { color: var(--accent) }
+ol { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 1.3cqw 3cqw; align-content: start; counter-reset: d }
+li { counter-increment: d; display: grid; grid-template-columns: 3cqw minmax(0, 1fr); gap: 1cqw; font-size: 1.55cqw; line-height: 1.3 }
+li::before { content: counter(d); font: 600 1.5cqw var(--mono); color: var(--accent); border: 1px solid var(--accent);
+  border-radius: 2px; height: 2.4cqw; display: grid; place-items: center }
+li b { display: block; font-size: 1.7cqw }
+li span { color: var(--muted) }
+.foot { display: flex; justify-content: space-between; gap: 2cqw; font: 1.1cqw var(--mono); color: var(--muted);
+  border-top: 1px solid var(--rule); padding-top: 1cqw }
+.foot b { color: var(--ink); background: var(--tag); padding: .1cqw .5cqw; border-radius: 2px; font-weight: 600 }
+</style>
+
+<div class="stage"><div class="slide" role="img" aria-label="Deviations from the challenge workbook">
+  <div class="eyebrow">Rules of play · "any limit you change must be stated in your demo"</div>
+  <h1>Where we depart from the <span>challenge workbook</span></h1>
+  <ol>
+    <li><div><b>Turnaround forecast per airline</b><span>Median observed turnaround (fit Jan–Jun, tested Jul–Dec), never below the workbook minimum, which stays the limit.</span></div></li>
+    <li><div><b>FAA B757 wake category kept</b><span>All workbook wake pairs are identical (checked by a test).</span></div></li>
+    <li><div><b>Airport noise curfews added</b><span>SNA and LGB, cited; not in the workbook.</span></div></li>
+    <li><div><b>Fuel read conservatively</b><span>45 min on arrival is total holding fuel: 15 min usable above the 30-min reserve.</span></div></li>
+    <li><div><b>Half of runway ops are arrivals</b><span>Arrival spacing = workbook ops/hour ÷ 2 per runway, or wake separation if larger.</span></div></li>
+    <li><div><b>Ground shifts start 06:00, 14:00, 22:00</b><span>8-hour length and 1.5× overtime from the workbook.</span></div></li>
+    <li><div><b>Airline gates by traffic share</b><span>Airport gates × the airline's share of arrivals there in flights.csv; spare gates as given.</span></div></li>
+  </ol>
+  <div class="foot"><span>Everything else: <b>challenge2_operational_constraints.xlsx</b> — runways, ops/hour, gates, min turnaround, wake, 30-min reserve, 13-h crew duty, 20-min gate notice</span><span>workbook.DEVIATIONS</span></div>
+</div></div>

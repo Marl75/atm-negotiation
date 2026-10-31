@@ -1,0 +1,145 @@
+<title>Monday Morning at DFW</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans+Condensed:wght@500;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+<style>
+/* Layout: one reading column; a timeline of flight strips for the shift, then two-column decide / don't-decide panels. */
+:root {
+  --bg: #eef2f4; --surface: #ffffff; --strip: #f7fbf6; --ink: #17222b; --muted: #55636e;
+  --rule: #c9d3da; --accent: #1d6f8c; --warn: #a2551b; --ok: #2f7a4b; --tint: #e7f1f5;
+  --display: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+  --body: "Source Serif 4", Georgia, serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #10171c; --surface: #172129; --strip: #1a2630; --ink: #e3eaee; --muted: #9aa9b3;
+  --rule: #2c3a44; --accent: #6cc0dc; --warn: #e3a067; --ok: #79c795; --tint: #1d3340; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #10171c; --surface: #172129; --strip: #1a2630; --ink: #e3eaee; --muted: #9aa9b3;
+  --rule: #2c3a44; --accent: #6cc0dc; --warn: #e3a067; --ok: #79c795; --tint: #1d3340; color-scheme: dark }
+* { box-sizing: border-box }
+body { background: var(--bg); color: var(--ink); font: 16.5px/1.6 var(--body) }
+.wrap { max-width: 920px; margin: 0 auto; padding-block: 32px 64px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 30px }
+h1, h2, h3 { font-family: var(--display); text-wrap: balance; margin: 0 }
+h1 { font-size: clamp(30px, 5vw, 44px); line-height: 1.08 }
+h2 { font-size: 23px }
+.eyebrow { font: 600 12px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted) }
+p { margin: 0; max-width: 68ch }
+.lede { font-size: 19px; color: var(--muted) }
+section { display: grid; gap: 14px }
+.strips { display: grid; gap: 8px }
+.strip { display: grid; grid-template-columns: 92px minmax(0, 1fr); background: var(--strip);
+  border: 1px solid var(--rule); border-left: 6px solid var(--accent); border-radius: 3px }
+.strip.warn { border-left-color: var(--warn) } .strip.ok { border-left-color: var(--ok) }
+.t { padding: 12px; border-right: 1px dashed var(--rule); font: 600 15px var(--mono); font-variant-numeric: tabular-nums }
+.s { padding: 12px 16px; display: grid; gap: 4px; min-width: 0 }
+.s b { font-family: var(--display); font-size: 16px }
+.cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px }
+.panel { background: var(--surface); border: 1px solid var(--rule); border-radius: 4px; padding: 18px 20px; display: grid; gap: 10px; align-content: start }
+.panel h3 { font-size: 15px; text-transform: uppercase; letter-spacing: .07em }
+.panel.yes h3 { color: var(--ok) } .panel.no h3 { color: var(--warn) }
+ul, ol { margin: 0; padding-left: 20px; display: grid; gap: 6px }
+.tablebox { overflow-x: auto }
+table { border-collapse: collapse; width: 100%; font-size: 15px }
+th, td { text-align: left; padding: 8px; border-bottom: 1px solid var(--rule); vertical-align: top }
+th { font: 600 12px var(--mono); text-transform: uppercase; letter-spacing: .05em; color: var(--muted) }
+td.m { font-family: var(--mono); font-size: 14px; white-space: nowrap }
+code { font-family: var(--mono); font-size: 14px; background: var(--tint); padding: 1px 5px; border-radius: 2px }
+.phase { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--rule) }
+.phase:last-child { border-bottom: 0 }
+.phase .k { font: 600 13px var(--mono); color: var(--accent) }
+@media (max-width: 560px) { .strip, .phase { grid-template-columns: 1fr } .t { border-right: 0; border-bottom: 1px dashed var(--rule) } }
+</style>
+
+<div class="wrap">
+  <header style="display:grid;gap:12px">
+    <span class="eyebrow">Airbus challenge #2 · adoption</span>
+    <h1>Monday morning at DFW approach</h1>
+    <p class="lede">What changes for the approach supervisor on the first shift with the tool, what it decides, what it
+      never decides, and what has to be true before it leaves the hackathon.</p>
+  </header>
+
+  <section>
+    <h2>A disrupted evening, before and after</h2>
+    <p>Same Envoy 3439 from Mobile, 45 minutes late because its inbound aircraft is late. Today, the gate conflict is
+      discovered when the aircraft is already on final.</p>
+    <div class="strips">
+      <div class="strip warn"><div class="t">TODAY</div><div class="s"><b>Phone tree</b>
+        <span>Tower calls the airline ramp, ramp calls dispatch, dispatch calls the crew. Gate G10 turns out to be busy
+          until 17:29 for an arrival at 16:55. The aircraft waits on the taxiway; the next leg leaves late.</span></div></div>
+      <div class="strip"><div class="t">T−110</div><div class="s"><b>The row arrives</b>
+        <span>The tool reads the flight, its inbound aircraft and the limits of DFW (4 runways, 150 gates, 3 spare,
+          45-minute minimum turnaround).</span></div></div>
+      <div class="strip"><div class="t">TURN 1</div><div class="s"><b>Three agents, three domains</b>
+        <span>ATC offers the slot, the pilot accepts, ground rejects: G10 is busy. The failed rule and its source are on
+          screen.</span></div></div>
+      <div class="strip"><div class="t">TURN 2</div><div class="s"><b>Ground proposes G12</b>
+        <span>Decided 110 minutes ahead, well above the 20-minute gate-change notice. All three agents accept.</span></div></div>
+      <div class="strip ok"><div class="t">T−105</div><div class="s"><b>The supervisor decides</b>
+        <span>One screen: plan, every check with its source, each agent's concerns. Approve or reject with a reason;
+          the decision is written into the log.</span></div></div>
+    </div>
+  </section>
+
+  <section class="cols">
+    <div class="panel yes"><h3>The tool does</h3><ul>
+      <li>Collect the three domains' constraints on one disrupted flight, in at most three turns.</li>
+      <li>Check every proposal against fixed rules: wake separation, fuel reserve, crew duty, gates, curfews.</li>
+      <li>Turn airborne holding into a ground hold at the origin when that is better.</li>
+      <li>Say why when there is no agreement, and which rule blocks.</li>
+      <li>Escalate when no legal plan exists, instead of forcing one.</li>
+    </ul></div>
+    <div class="panel no"><h3>The tool never does</h3><ul>
+      <li>Apply a plan without the supervisor's approval.</li>
+      <li>Let a language model decide whether a plan is legal: the rules do.</li>
+      <li>Extend a crew's duty time or pick a reserve crew: that stays with the airline.</li>
+      <li>Replace the controller in tactical, final-approach decisions.</li>
+      <li>Use information that only exists after the flight.</li>
+    </ul></div>
+  </section>
+
+  <section>
+    <h2>What to replace before real use</h2>
+    <p>Everything the prototype simulates is labelled in the logs. These are the inputs an operator would plug in.</p>
+    <div class="tablebox"><table>
+      <thead><tr><th>Today in the prototype</th><th>In operation</th><th>Owner</th></tr></thead>
+      <tbody>
+        <tr><td>Workbook gates and spare gates (synthetic)</td><td>Live gate plan from the airport operational database</td><td>Airport ops</td></tr>
+        <tr><td>Runway capacity from the workbook</td><td>Declared arrival rate (FAA ASPM / traffic management unit)</td><td>TRACON / TMU</td></tr>
+        <tr><td>13-hour crew limit, crew follows the aircraft</td><td>Real crew pairings and Part 117 limits per pilot</td><td>Airline crew control</td></tr>
+        <tr><td>Fuel: 15 minutes of holding available</td><td>Fuel on board from the flight plan and ACARS</td><td>Airline dispatch</td></tr>
+        <tr><td>Ground shifts 06:00 / 14:00 / 22:00</td><td>Ramp rosters</td><td>Ground handler</td></tr>
+        <tr><td>Inbound delay from the previous leg</td><td>Live ETA of the inbound aircraft</td><td>Airline OCC</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section>
+    <h2>Rollout</h2>
+    <div class="panel" style="gap:0">
+      <div class="phase"><span class="k">Weeks 1–4</span><p><b>Shadow mode.</b> The tool runs on every disrupted
+        arrival but shows nothing to operators. Compare its plans with what was actually decided.</p></div>
+      <div class="phase"><span class="k">Weeks 5–8</span><p><b>Advisory.</b> The supervisor sees the plan and the
+        checks, decides as today, and records agree / disagree with a reason.</p></div>
+      <div class="phase"><span class="k">Week 9 on</span><p><b>Approve-to-apply</b> for gate changes and ground holds
+        only. Crew and runway decisions stay manual until the crew and capacity feeds are live.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>How we would know it works</h2>
+    <div class="tablebox"><table>
+      <thead><tr><th>Measure</th><th>Prototype value</th><th>Target in shadow mode</th></tr></thead>
+      <tbody>
+        <tr><td>Uncoordinated plans breaking a hard rule, found before departure</td><td class="m">5.1 % of disrupted flights</td><td>Confirm on live data</td></tr>
+        <tr><td>Unsafe plans kept</td><td class="m">0 / 200</td><td>0, always</td></tr>
+        <tr><td>Flights with no legal plan, escalated with a reason</td><td class="m">2.6 %</td><td>Every one reviewed by crew control</td></tr>
+        <tr><td>Supervisor agrees with the plan</td><td class="m">not measured</td><td>Track in advisory phase</td></tr>
+        <tr><td>Time to a decision</td><td class="m">9–14 s</td><td>Under 1 minute, against several calls today</td></tr>
+        <tr><td>Cost</td><td class="m">$0.04–0.09 per flight</td><td>Only disrupted flights run</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+</div>
