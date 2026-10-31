@@ -40,6 +40,14 @@ def evaluate(n: int, seed: int, workers: int) -> None:
     print(f"-> {out}")
 
 
+def audit(n: int, seed: int, workers: int, gates: int, planned_gate: str) -> None:
+    from .audit import run_audit
+
+    _, summary, out = run_audit(n, seed, workers, gates, planned_gate)
+    print(summary)
+    print(f"-> {out}")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(prog="atm")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -50,10 +58,18 @@ def main() -> None:
     e.add_argument("--n", type=int, default=20)
     e.add_argument("--seed", type=int, default=0)
     e.add_argument("--workers", type=int, default=4)
+    a = sub.add_parser("audit", help="status quo vs rules on many flights, no LLM")
+    a.add_argument("--n", type=int, default=10_000)
+    a.add_argument("--seed", type=int, default=0)
+    a.add_argument("--workers", type=int, default=8)
+    a.add_argument("--gates", type=int, default=4, help="gates per airline at destination (assumption)")
+    a.add_argument("--planned-gate", choices=["first", "random"], default="first")
     args = ap.parse_args()
     if args.cmd == "check":
         check()
     elif args.cmd == "run":
         run(args.row)
+    elif args.cmd == "audit":
+        audit(args.n, args.seed, args.workers, args.gates, args.planned_gate)
     else:
         evaluate(args.n, args.seed, args.workers)
