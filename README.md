@@ -40,6 +40,23 @@ fallback.py      solveur déterministe si pas de consensus
 cli.py           `atm check`, `atm run --row N`
 ```
 
+## Contraintes et provenance des valeurs
+Chaque contrôle du log porte `hard` (sécurité, non négociable) ou soft (coût, négociable), une `basis` et une `source`.
+
+| Contrôle | Agent | Type | Base | Valeur / source |
+|---|---|---|---|---|
+| `runway_open` | ATC | hard | ASSUMPTION | Ligne météo → une piste fermée (simulé) |
+| `wake_separation` | ATC | hard | REGULATORY | ICAO Doc 4444 : H→M 5 NM, H→L 6 NM, J→M 7 NM…, sinon 3 NM radar. Conversion à 140 kt (hypothèse) |
+| `landing_slot_available` | ATC | hard | DATA | `WEATHER_DELAY + LATE_AIRCRAFT_DELAY` de la ligne (le PDF demande de passer ces paramètres) |
+| `final_reserve_fuel` | Pilote | hard | REGULATORY | 14 CFR 121.639 : dégagement + 45 min (ICAO/EASA : 30 min). Carburant au-dessus des réserves : 20 min (**hypothèse**, le DOT n'a pas de carburant) |
+| `gate_available` | Sol | hard | ASSUMPTION | Ligne late aircraft → porte prévue encore occupée (simulé) |
+| `crew_shift` | Sol | soft | ASSUMPTION | Fin de service équipe au sol 23:00 (simulé) |
+| `turnaround_next_leg` | Sol | soft | DATA | Prochain départ du même `TAIL_NUMBER` le même jour ; rotation mini 35 min (hypothèse) |
+
+Supprimé de la v0 : `max_holding` (pas de limite réglementaire, c'est le carburant qui limite) et `crew_overtime` sur le retard total (faux : dépend de l'heure d'arrivée vs fin de service).
+
+**Évaluation :** `ARRIVAL_DELAY` réel du DOT n'est jamais donné aux agents ; il sert de référence « sans le système ».
+
 ## Démarrage
 ```bash
 cp .env.example .env      # puis mettre ANTHROPIC_API_KEY

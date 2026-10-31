@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from ..llm import ask_structured
-from ..protocol import Disruption, Evaluation, Proposal, Role
+from ..protocol import Disruption, Evaluation, OpsContext, Proposal, Role
 
 
 class Agent:
@@ -19,9 +19,11 @@ class Agent:
             "and if you reject it, give a counter-proposal. Never accept a proposal that breaks a safety margin."
         )
 
-    def evaluate(self, scenario: Disruption, proposal: Proposal, history: str = "") -> Evaluation:
+    def evaluate(self, scenario: Disruption, context: OpsContext, proposal: Proposal, history: str = "") -> Evaluation:
+        # TODO: give each agent only the context fields of its own domain
         user = (
             f"Scenario:\n{scenario.model_dump_json(indent=2)}\n\n"
+            f"Operational context:\n{context.model_dump_json(indent=2)}\n\n"
             f"Proposal:\n{proposal.model_dump_json(indent=2)}\n\n"
             f"Negotiation so far:\n{history or '(first round)'}"
         )

@@ -22,14 +22,19 @@ def check() -> None:
 
 
 def run(row: int) -> None:
-    from .data import load_disruptions, row_to_disruption
+    from .context import build_context
+    from .data import disruptions, load_flights, next_departure_same_tail, row_to_disruption
     from .negotiation import negotiate
     from .protocol import Proposal
 
-    s = row_to_disruption(load_disruptions().iloc[row])
-    initial = Proposal(revised_arrival_delay_min=int(s.weather_delay_min + s.late_aircraft_delay_min),
-                       holding_min=15, runway="27L", gate="A1", rationale="initial ATC slot")
-    out = negotiate(s, initial)
+    flights = load_flights()
+    r = disruptions(flights).iloc[row]
+    s = row_to_disruption(r)
+    c = build_context(s, next_departure_same_tail(flights, r))
+    # Naive first ATC offer (first runway / gate, short gap): may break constraints on purpose
+    initial = Proposal(revised_arrival_delay_min=c.earliest_arrival_delay_min, holding_min=15, slot_gap_min=1.5,
+                       runway=c.runways[0], gate=c.gates[0], rationale="initial ATC slot")
+    out = negotiate(s, c, initial)
     print(out.model_dump(exclude={"turns"}))
 
 

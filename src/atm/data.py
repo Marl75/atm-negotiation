@@ -24,10 +24,30 @@ def flights_path() -> Path:
     raise FileNotFoundError(f"Put the Challenge #2 DATA files (flights.csv, airlines.csv, airports.csv) in {DATA_DIR}")
 
 
-def load_disruptions(nrows: int | None = 200_000) -> pd.DataFrame:
-    df = pd.read_csv(flights_path(), usecols=USECOLS, nrows=nrows, low_memory=False)
+def load_flights(nrows: int | None = 200_000) -> pd.DataFrame:
+    return pd.read_csv(flights_path(), usecols=USECOLS, nrows=nrows, low_memory=False)
+
+
+def disruptions(df: pd.DataFrame) -> pd.DataFrame:
     mask = (df["WEATHER_DELAY"] > 15) | (df["LATE_AIRCRAFT_DELAY"] > 20)
     return df[mask].reset_index(drop=True)
+
+
+def load_disruptions(nrows: int | None = 200_000) -> pd.DataFrame:
+    return disruptions(load_flights(nrows))
+
+
+def next_departure_same_tail(df_all: pd.DataFrame, row: pd.Series) -> str | None:
+    """Next scheduled departure of the same aircraft that day, from the destination airport."""
+    if not isinstance(row["TAIL_NUMBER"], str):
+        return None
+    same = df_all[(df_all["TAIL_NUMBER"] == row["TAIL_NUMBER"]) & (df_all["YEAR"] == row["YEAR"])
+                  & (df_all["MONTH"] == row["MONTH"]) & (df_all["DAY"] == row["DAY"])
+                  & (df_all["ORIGIN_AIRPORT"] == row["DESTINATION_AIRPORT"])
+                  & (df_all["SCHEDULED_DEPARTURE"] > row["SCHEDULED_ARRIVAL"])]
+    if same.empty:
+        return None
+    return _hhmm(same["SCHEDULED_DEPARTURE"].min())
 
 
 def _hhmm(v) -> str:
